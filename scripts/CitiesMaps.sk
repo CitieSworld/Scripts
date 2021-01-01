@@ -1,0 +1,36 @@
+options:
+	Usage: &6Arim>> &cUsage: /getmap &e<image>&c.
+	Invalid: &6Arim>> &cFile not found.
+	NeedItem: &6Arim>> &cYou need a custom map first. &7Craft such a map with 1 sign and 2 lapis blocks.
+	FakeCmd: /awshuibzkjnkma
+
+on command "/getmap":
+	cancel event
+	if arguments is set:
+		make player execute command "/tomap %arguments%"
+	else:
+		send "{@Usage}"
+
+Command /tomap [<text>]:
+	Executable by: players
+	Trigger:
+		if arg 1 is set:
+			if file "images/%arg 1%" exists:
+				if player's tool is sign named "&bCustom Map":
+					set player's tool to air
+					make player execute command "/ImageOnMap:tomap http://localhost/images/citiesworld/%arg 1%"
+				else:
+					send "{@NeedItem}"
+			else:
+				send "{@Invalid}"
+		else:
+			send "{@Usage}"
+
+on command:
+	if command is "maps" or "maptool" or "help" or "plugins":
+		cancel event
+		make player execute command "{@FakeCmd}"
+	else if command contains ":":
+		if command != "ImageOnMap:tomap":
+			cancel event
+			make player execute command "{@FakeCmd}"

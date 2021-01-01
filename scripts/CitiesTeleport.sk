@@ -1,0 +1,609 @@
+#
+#
+#
+# Cities Teleport
+#
+# by Aerodactyl_
+#
+#
+#
+#
+#
+# Requires Skript!
+#
+#
+# Required Skript addons:
+# - SkQuery
+# - SkRayFall
+# - TuSKe
+#
+#
+#
+#
+# INSTALLATION
+#
+# 1. Install Skript
+# 2. Install the Skript addons, listed above.
+# 3. Place this script in your scripts directory (plugins/Skript/scripts)
+# 4. Configure this script. Config is below.
+# 5. Type '/skript reload scripts' in the console.
+#
+#
+#
+#
+#
+# CONFIG
+#
+#
+options:
+	Perm: &cSorry, you can't use this.
+#Prefix for chat messages
+	Prefix: &6Arim>>
+#For polar boundaries.
+#Current mode = polar
+#Maximumm R value
+	MaxR: 9500
+#Minimum R value
+	MinR: 500
+#For cartesian boundaries.
+#Current mode = polar
+#Maximum |X| and |Y| values
+	MaxX: 10000
+	MaxZ: 10000
+#Minimum |X| and |Y| values
+	MinX: 400
+	MinZ: 400
+#The world that this script will set the randomly generated location in.
+#It does not mean that players must randomly teleport from this world.
+#It means that players will be randomly teleported to a location in this world.
+	World: CitiesTransfer
+#Blacklisted biomes.
+#Format: <biome> or <biome> or <biome>, etc.
+	BlacklistedBiomes: nether or sky or ocean or deep ocean or frozen ocean
+#If the script does not find a valid location, it will have to search again.
+#How many search attempts this script should try
+	SearchAmount: 10
+#Usage message for /rtp <player>
+	UsageCmd: &cUsage: /randomtp <player>
+#Successful messages
+#After being teleported
+	TeleportMsg: &6Arim>> &aYou were teleported to a random location.
+#After teleporting another player
+	TeleportingOther: &6Arim>> &5%arg 1%&a will be teleported to a random location.
+#Permissions
+	TPPerm: arim.teleport
+	TPEPerm: arim.teleportentity
+	TPRelPerm: arim.tpcoord
+	TPCoordPerm: arim.tpcoord
+#Permission to teleport self with a command
+	TpPermSelf: arim.randomtp.self
+#Permission to teleport others with a command
+	TpPermOther: arim.randomtp.other
+#Permission to bypass teleport warmup, to teleport instantly
+	TpInstant: arim.tpinstant
+#Permission messages
+	TpSelfMsg: &6Arim>> &aYou may not teleport yourself.
+	TpOtherMsg:&6Arim>> &aYou may not randomly teleport others.
+#Warmup
+	WarmupTime: 5
+#Warmup title
+	Title: &aTeleporting in &5%{_timeleft}%&a...
+	SubTitle: &cDo not move during teleport.
+#Format: for <number> second
+	TitleCustomization: for 1 second
+#Warmup success
+	SuccessTitle: &5Teleported
+	SuccessSub: &aYou were teleported to %{_textloc}%&a.
+	SuccessTitleCustom: for 2 second
+#Warmup failure:
+	WarmupFail: &6Arim>> &cYou moved during teleport.
+#Warmup failure title
+	TitleFail: &cTeleport Cancelled.
+	SubTitleFail: &aSorry, but you moved during teleport.
+	TitleFailCustomization: for 2 second
+	AlreadySent: &6Arim>> &aYou already sent a teleport request &e(tpa) &ato &5%arg 1%&a.
+	AlreadySentHere: &6Arim>> &aYou already sent a teleport request &e(tpahere) &ato &5%arg 1%&a.
+	Sending: &6Arim>> &aSent a teleport request &e(tpa) &ato &5%arg 1%&a &e(Expires in 30s)
+	SendingHere: &6Arim>> &aSent a teleport request &e(tpahere) &ato &5%arg 1%&a &e(Expires in 30s)
+	ReceivedTPReq: &6Arim>> &5%player% &arequests to teleport to you &e(tpa)&a.||ttp:&7Don't click here, silly!|| &3Click here to accept.||ttp:&7Accept the &etpa&7 request from &5%player%&7.||cmd:/tpaccept %player%
+	ReceivedTPHereReq: &6Arim>> &5%player% &arequests that you teleport to them &e(tpahere)&a.||ttp:&7Don't click here, silly!|| &3Click here to accept.||ttp:&7Accept the &etpahere&7 request from &5%player%&7.||cmd:/tpaccept %player% here
+	Expiry: 30 seconds
+	Worlds: "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end"
+	WrongWorld: &6Arim>> &aYou must be in &5Citie Sworld&a to use this command.
+	CrossWorld: false
+	NoCrossWorld: &6Arim>> &5%arg 1% &cis not in your game/map.
+	UsageTPA: &6Arim>> &cSpecify a player. (/tpa &e<player>&c)
+	UsageTPHere: &6Arim>> &cSpecify a player. (/tpahere &e<player>&c)
+	UsageTPAccept: &6Arim>> &cSpecify a player. (/tpaccept &e<player>&c)
+	UsageTPDeny: &6Arim>> &cSpecify a player. (/tpadeny &e<player>&c)
+	PermRequestsOther: arim.mod
+	GarbageCollection: 3 minutes
+	PlayerOffline: &6Arim>> &5%arg 1%&c could not be found.
+	CoolWorlds: "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end"
+
+# Past versions of this script included a teleportation warmup
+function fairTP(p: player, loc: location, textloc: text = "&athe correct location", time: number = 0):
+	teleport {_p} to {_loc}
+	send {_p} title "{@SuccessTitle}" with subtitle "{@SuccessSub}" {@SuccessTitleCustom}
+
+on command "/aosudhdansin":
+	if the event was not cancelled:
+		if arguments is set:
+			set {_arg} to "%arguments%" parsed as player
+			teleport player to {_arg}
+
+Command /viewlocation [<text>]:
+	Aliases: /viewloc
+	Permission: arim.viewloc
+	Permission message: {@Perm}
+	Trigger:
+		if arg 1 is set:
+			if arg 1 is "me":
+				send "&6Arim>> &5Your Location &b&l:: &e%x-coordinate of player%&a, &e%y-coordinate of player%&a, &e%z-coordinate of player%&a in &e%world of player%&a."
+				stop	
+			else if arg 1 is "block":
+				send "&6Arim>> &5Target Block Location &b&l:: &e%x-coordinate of player's targeted block%&a, &e%y-coordinate of player's targeted block%&a, &e%z-coordinate of player's targeted block%&a in &e%world of player%&a."
+				stop
+			else if arg 1 is not "any":
+				send "&6Arim>> &cUsage: /viewlocation &e[me|block|any]&c."
+		if player's targeted entity is set:
+			send "&6Arim>> &5Target Entity Location &b&l:: &e%x-coordinate of player's targeted entity%&a, &e%y-coordinate of player's targeted entity%&a, &e%z-coordinate of player's targeted entity%&a in &e%world of player%&a."
+			stop
+		else:
+			send "&6Arim>> &5Target Block Location &b&l:: &e%x-coordinate of player's targeted block%&a, &e%y-coordinate of player's targeted block%&a, &e%z-coordinate of player's targeted block%&a in &e%world of player%&a."
+
+Command /tpe [<number>] [<number>] [<number>] [<number>]:
+	Aliases: /tpradius, /tpentity, /tpall
+	Permission: {@TPEPerm}
+	Permission message: {@Perm}
+	Trigger:
+		if arg 1 is not set:
+			send "&6Arim>> &cUsage: /tpentity &e<radius> [x] [y] [z]&c."
+		else:
+			if arg 2 is set:
+				set {_x} to arg 2
+			else:
+				set {_x} to x-coordinate of player
+			if arg 3 is set:
+				set {_y} to arg 3
+			else:
+				set {_y} to y-coordinate of player
+			if arg 4 is set:
+				set {_z} to arg 4
+			else:
+				set {_z} to z-coordinate of player
+			loop all entities in radius arg 1 around player:
+				teleport loop-entity to location({_x}, {_y}, {_z}, "%world of player%" parsed as world, 0, 0)
+				send "&6Arim>> &aTeleported entity &5%loop-entity%&a to specified location."
+
+Command /tp [<player>] [<text>]:
+	Aliases: /teleport, /arimteleport, /arimtp
+	Usage: /tp <player> [here]
+	Permission: {@TPPerm}
+	Permission message: {@Perm}
+	Trigger:
+		if arg 1 is not set:
+			send "&6Arim>> &cUsage: /teleport &e<player> [here|vanish]&c."
+			stop
+		set {_myworld} to "%world of player%"
+		set {_world} to "%world of arg 1%"
+		if {_myworld} contains "_nether":
+			set {_end} to (length of {_myworld} - 7)
+			set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+		if {_myworld} contains "_the_end":
+			set {_end} to (length of {_myworld} - 8)
+			set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+		if {_world} contains "_nether":
+			set {_end} to (length of {_world} - 7)
+			set {_world} to subtext of {_world} from characters 1 to {_end}
+		if {_world} contains "_the_end":
+			set {_end} to (length of {_world} - 8)
+			set {_world} to subtext of {_world} from characters 1 to {_end}
+		if {_world} != {_myworld}:
+			if player doesn't have permission "arim.mworldtp":
+				send "&6Arim>> &aYou cannot teleport players from other worlds."
+				stop
+		if arg 2 is set:
+			if "%arg 2%" = "here":
+				teleport arg 1 to player
+				send "&6Arim>> &5%arg 1%&7 teleported to you."
+				stop
+			else:
+				send "&6Arim>> &cUsage: /teleport &e<player> [here|vanish]&c."
+				stop
+		teleport player to arg 1
+		send "&6Arim>> &7Teleported to &5%arg 1%&7."
+
+Command /tprelative [<number>] [<number>] [<number>]:
+	Aliases: /tprel, /relativetp, /relativeteleport
+	Permission: {@TPRelPerm}
+	Permission message: {@Perm}
+	Trigger:
+		if arg 1 is not set:
+			send "&6Arim>> &cUsage: /tprelative &e<x> <y> <z>&c. Teleport to relative coordinates"
+			stop
+		if arg 2 is not set:
+			send "&6Arim>> &cUsage: /tprelative &e<x> <y> <z>&c. Teleport to relative coordinates"
+			stop
+		if arg 3 is not set:
+			send "&6Arim>> &cUsage: /tprelative &e<x> <y> <z>&c. Teleport to relative coordinates"
+			stop
+		set {_x} to (arg 1 + x-coordinate of player)
+		set {_y} to (arg 2 + y-coordinate of player)
+		set {_z} to (arg 3 + z-coordinate of player)
+		set {_loc} to location({_x}, {_y}, {_z}, world of player, 0, 0)
+		fairTP(player, {_loc}, "&e%{_x}%&a, &e%{_y}%&a, &e%{_z}%&a in your world.", {@WarmupTime})
+
+Command /tpcoord [<number>] [<number>] [<number>] [<text>] <number=0> <number=0>:
+	Aliases: /tpcoords
+	Permission: {@TPCoordPerm}
+	Permission message: {@Perm}
+	Trigger:
+		if arg 1 is not set:
+			send "&6Arim>> &cUsage: /tpcoord &e<x> <y> <z> [world] [yaw] [pitch]&c."
+			stop
+		if arg 2 is not set:
+			send "&6Arim>> &cUsage: /tpcoord &e<x> <y> <z> [world] [yaw] [pitch]&c."
+			stop
+		if arg 3 is not set:
+			send "&6Arim>> &cUsage: /tpcoord &e<x> <y> <z> [world] [yaw] [pitch]&c."
+			stop
+		if arg 4 is set:
+			set {_myworld} to "%world of player%"
+			set {_world} to "%arg 4%"
+			if {_myworld} contains "_nether":
+				set {_end} to (length of {_myworld} - 7)
+				set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+			if {_myworld} contains "_the_end":
+				set {_end} to (length of {_myworld} - 8)
+				set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+			if {_world} contains "_nether":
+				set {_end} to (length of {_world} - 7)
+				set {_world} to subtext of {_world} from characters 1 to {_end}
+			if {_world} contains "_the_end":
+				set {_end} to (length of {_world} - 8)
+				set {_world} to subtext of {_world} from characters 1 to {_end}
+			if {_world} != {_myworld}:
+				if player doesn't have permission "arim.mworldtp":
+					send "&6Arim>> &cYou can't teleport to other worlds."
+					stop
+			set {_world} to "%arg 4%"
+		else:
+			set {_world} to "%world of player%"
+		set {_loc} to location(arg 1, arg 2, arg 3, "%{_world}%" parsed as world, arg 5, arg 6)
+		fairTP(player, {_loc}, "&e%arg 1%&a, &e%arg 2%&a, &e%arg 3%&a, in &5%{_world}%&a.", {@WarmupTime})
+
+Command /tpa [<player>] [<text>]:
+	Aliases: /tprequest, /teleportrequest, /reqtp, /tpreq
+	Executable by: players
+	Trigger:
+		if player is in {@Worlds}:
+			if arg 1 is set:
+				if arg 2 is set:
+					if "%arg 2%" is "here" or "tphere" or "tpahere":
+						make player execute command "/tpahere %arg 1%"
+						stop
+				set {_myworld} to "%world of player%"
+				set {_world} to "%world of arg 1%"
+				if {_myworld} contains "_nether":
+					set {_end} to (length of {_myworld} - 7)
+					set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+				if {_myworld} contains "_the_end":
+					set {_end} to (length of {_myworld} - 8)
+					set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+				if {_world} contains "_nether":
+					set {_end} to (length of {_world} - 7)
+					set {_world} to subtext of {_world} from characters 1 to {_end}
+				if {_world} contains "_the_end":
+					set {_end} to (length of {_world} - 8)
+					set {_world} to subtext of {_world} from characters 1 to {_end}
+				if {_myworld} = {_world}:
+					if {tpas::%arg 1%::tpa::%player%} is set:
+						if {tpas::%arg 1%::tpa::%player%} = 1:
+							send "{@AlreadySent}"
+						else:
+							set {tpas::%arg 1%::tpa::%player%} to 1
+							json("%arg 1%", "{@ReceivedTPReq}")
+							send "{@Sending}"
+							wait {@Expiry}
+							if {tpas::%arg 1%::tpa::%player%} = 1:
+								set {tpas::%arg 1%::tpa::%player%} to 2
+								send "&6Arim>> &aYour teleport request &e(tpa)&a to &5%arg 1%&a &c&nexpired&r&a."
+							wait {@GarbageCollection}
+							if {tpas::%arg 1%::tpa::%player%} = 2:
+								delete {tpas::%arg 1%::tpa::%player%}
+						stop
+					set {tpas::%arg 1%::tpa::%player%} to 1
+					json("%arg 1%", "{@ReceivedTPReq}")
+					send "{@Sending}"
+					wait {@Expiry}
+					if {tpas::%arg 1%::tpa::%player%} = 1:
+						set {tpas::%arg 1%::tpa::%player%} to 2
+						send "&6Arim>> &aYour teleport request &e(tpa)&a to &5%arg 1%&a &c&nexpired&r&a."
+					wait {@GarbageCollection}
+					if {tpas::%arg 1%::tpa::%player%} = 2:
+						delete {tpas::%arg 1%::tpa::%player%}
+				else:
+					send "{@NoCrossWorld}"
+			else:
+				send "{@UsageTPA}"
+		else:
+			send "{@WrongWorld}"
+
+Command /tpahere [<player>]:
+	Aliases: /tphere, /teleporthere
+	Executable by: players
+	Trigger:
+		if player is in {@Worlds}:
+			if arg 1 is set:
+				set {_myworld} to "%world of player%"
+				set {_world} to "%world of arg 1%"
+				if {_myworld} contains "_nether":
+					set {_end} to (length of {_myworld} - 7)
+					set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+				if {_myworld} contains "_the_end":
+					set {_end} to (length of {_myworld} - 8)
+					set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+				if {_world} contains "_nether":
+					set {_end} to (length of {_world} - 7)
+					set {_world} to subtext of {_world} from characters 1 to {_end}
+				if {_world} contains "_the_end":
+					set {_end} to (length of {_world} - 8)
+					set {_world} to subtext of {_world} from characters 1 to {_end}
+				if {_myworld} = {_world}:
+					if {tpas::%arg 1%::here::%player%} is set:
+						if {tpas::%arg 1%::here::%player%} = 1:
+							send "{@AlreadySentHere}"
+						else:
+							set {tpas::%arg 1%::here::%player%} to 1
+							json("%arg 1%", "{@ReceivedTPHereReq}")
+							send "{@SendingHere}"
+							wait {@Expiry}
+							if {tpas::%player%::here::%arg 1%} = 1:
+								set {tpas::%arg 1%::here::%player%} to 2
+								send "&6Arim>> &aYour teleport request &e(tpahere)&a to &5%arg 1%&a &c&nexpired&r&a."
+							wait {@GarbageCollection}
+							if {tpas::%arg 1%::here::%player%} = 2:
+								delete {tpas::%arg 1%::here::%player%}
+						stop
+					set {tpas::%arg 1%::here::%player%} to 1
+					json("%arg 1%", "{@ReceivedTPHereReq}")
+					send "{@SendingHere}"
+					wait {@Expiry}
+					if {tpas::%player%::here::%arg 1%} = 1:
+						set {tpas::%arg 1%::here::%player%} to 2
+						send "&6Arim>> &aYour teleport request &e(tpahere)&a to &5%arg 1%&a &c&nexpired&r&a."
+					wait {@GarbageCollection}
+					if {tpas::%arg 1%::here::%player%} = 2:
+						delete {tpas::%arg 1%::here::%player%}
+				else:
+					send "{@NoCrossWorld}"
+			else:
+				send "{@UsageTPHere}"
+		else:
+			send "{@WrongWorld}"
+
+Command /tpaccept [<player>] [<text>]:
+	Aliases: /teleportaccept
+	Executable by: players
+	Trigger:
+		if player is in {@Worlds}:
+			if arg 1 is set:
+				set {_myworld} to "%world of player%"
+				set {_world} to "%world of arg 1%"
+				if {_myworld} contains "_nether":
+					set {_end} to (length of {_myworld} - 7)
+					set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+				if {_myworld} contains "_the_end":
+					set {_end} to (length of {_myworld} - 8)
+					set {_myworld} to subtext of {_myworld} from characters 1 to {_end}
+				if {_world} contains "_nether":
+					set {_end} to (length of {_world} - 7)
+					set {_world} to subtext of {_world} from characters 1 to {_end}
+				if {_world} contains "_the_end":
+					set {_end} to (length of {_world} - 8)
+					set {_world} to subtext of {_world} from characters 1 to {_end}
+				if {_myworld} = {_world}:
+					if "%arg 2%" is "here" or "tphere" or "tpahere":
+						if {tpas::%player%::here::%arg 1%} = 1:
+							send "&6Arim>> &aAccepted teleport request &e(tpahere) &afrom &5%arg 1%&a."
+							send "&6Arim>> &aYour teleport request &e(tpahere)&a to &5%player%&a was &naccepted&r&a. Teleporting..." to arg 1
+							delete {tpas::%player%::here::%arg 1%}
+							fairTP(player, location of arg 1, "&e%arg 1%", {@WarmupTime})
+						else if {tpas::%player%::tpa::%arg 1%} = 1:
+							send "&6Arim>> &aAccepted teleport request &e(tpa) &afrom &5%arg 1%&a."
+							send "&6Arim>> &aYour teleport request &e(tpa)&a to &5%player%&a was &naccepted&r&a. Teleporting..." to arg 1
+							delete {tpas::%player%::tpa::%arg 1%}
+							fairTP(arg 1, location of player, "&e%player%", {@WarmupTime})
+						else if {tpas::%player%::here::%arg 1%} = 2:
+							send "&6Arim>> &cRequest has &nexpired.&r &aUse &e/tpa %arg 1%&a to teleport to &5%arg 1%&a."
+						else if {tpas::%player%::tpa::%arg 1%} = 2:
+							send "&6Arim>> &cRequest has &nexpired.&r &aUse &e/tpahere %arg 1%&a to teleport &5%arg 1%&a to your location."
+						else:
+							send "&6Arim>> &5%arg 1%&c has not sent a teleport request."
+					else:
+						if {tpas::%player%::tpa::%arg 1%} = 1:
+							send "&6Arim>> &aAccepted teleport request &e(tpa) &afrom &5%arg 1%&a."
+							send "&6Arim>> &aYour teleport request &e(tpa)&a to &5%player%&a was &naccepted&r&a. Teleporting..." to arg 1
+							delete {tpas::%player%::tpa::%arg 1%}
+							fairTP(arg 1, location of player, "&e%player%", {@WarmupTime})
+						else if {tpas::%player%::here::%arg 1%} = 1:
+							send "&6Arim>> &aAccepted teleport request &e(tpahere) &afrom &5%arg 1%&a."
+							send "&6Arim>> &aYour teleport request &e(tpahere)&a to &5%player%&a was &naccepted&r&a. Teleporting..." to arg 1
+							delete {tpas::%player%::here::%arg 1%}
+							fairTP(player, location of arg 1, "&e%arg 1%", {@WarmupTime})
+						else if {tpas::%player%::tpa::%arg 1%} = 2:
+							send "&6Arim>> &cRequest has &nexpired.&r &aUse &e/tpahere %arg 1%&a to teleport &5%arg 1%&a to your location."
+						else if {tpas::%player%::here::%arg 1%} = 2:
+							send "&6Arim>> &cRequest has &nexpired.&r &aUse &e/tpa %arg 1%&a to teleport to &5%arg 1%&a."
+						else:
+							send "&6Arim>> &5%arg 1%&c has not sent a teleport request."
+				else:
+					send "{@NoCrossWorld}"
+			else:
+				send "{@UsageTPAccept}"
+		else:
+			send "{@WrongWorld}"
+
+Command /tpadeny [<player>] [<text>]:
+	Aliases: /tpdeny, /teleportdeny
+	Executable by: players
+	Trigger:
+		if player is in {@Worlds}:
+			if arg 1 is set:
+				if "%arg 2%" is "here" or "tphere" or "tpahere":
+					if {tpas::%player%::here::%arg 1%} is 1 or 2:
+						send "&6Arim>> &c&nDenied &athe teleport request &e(tpahere) &afrom &5%arg 1%&a."
+						send "&6Arim>> &aYour teleport request &e(tpahere)&a to &5%player%&a was &c&ndenied&r&a." to arg 1
+						delete {tpas::%player%::here::%arg 1%}
+					else if {tpas::%player%::tpa::%arg 1%} is 1 or 2:
+						send "&6Arim>> &c&nDenied &athe teleport request &e(tpa) &afrom &5%arg 1%&a."
+						send "&6Arim>> &aYour teleport request &e(tpa)&a to &5%player%&a was &c&ndenied&r&a." to arg 1
+						delete {tpas::%player%::tpa::%arg 1%}
+					else:
+						send "&6Arim>> &5%arg 1%&c has not sent a teleport request."
+				else:
+					if {tpas::%player%::tpa::%arg 1%} is 1 or 2:
+						send "&6Arim>> &c&nDenied &athe teleport request &e(tpa) &afrom &5%arg 1%&a."
+						send "&6Arim>> &aYour teleport request &e(tpa)&a to &5%player%&a was &c&ndenied&r&a." to arg 1
+						delete {tpas::%player%::tpa::%arg 1%}
+					else if {tpas::%player%::here::%arg 1%} is 1 or 2:
+						send "&6Arim>> &c&nDenied &athe teleport request &e(tpahere) &afrom &5%arg 1%&a."
+						send "&6Arim>> &aYour teleport request &e(tpahere)&a to &5%player%&a was &c&ndenied&r&a." to arg 1
+						delete {tpas::%player%::here::%arg 1%}
+					else:
+						send "&6Arim>> &5%arg 1%&c has not sent a teleport request."
+			else:
+				send "{@UsageTPDeny}"
+		else:
+			send "{@WrongWorld}"
+
+Command /denyallrequests:
+	Aliases: /denyreqs, /denyrequests, /denyallreqs
+	Executable by: players
+	Trigger:
+		loop {tpas::%player%::tpa::*}:
+			make player execute command "/tpadeny %loop-index%"
+		loop {tpas::%player%::here::*}:
+			make player execute command "/tpadeny %loop-index% here"
+
+Command /tprequests <player=%player%>:
+	Aliases: /reqs, /tpreqs, /requests, /listreqs, /listrequests
+	Executable by: players
+	Trigger:
+		if "%arg 1%" != "%player%":
+			if player doesn't have permission "{@PermRequestsOther}":
+				make player execute command "/tprequests"
+				stop
+		wait 3 ticks
+		open chest with 6 rows named "&3Teleport Requests" to player
+		format slot 4 of player with 1 name tag named "&eTPA Requests" to be unstealable
+		set {_num} to 0
+		loop {tpas::%arg 1%::tpa::*}:
+			if {tpas::%arg 1%::tpa::%loop-index%} = 2:
+				format slot ({_num} + 9) of player with 1 mossy cobblestone named "&c[Expired] &a%loop-index%" with lore "&7Click to send a new request." to close then run [json("%player%", "&6Arim>> ||&aClick here to send a new request.||ttp:&dClick me!||sgt:/tpahere || &e(/tpahere)")]
+			else:
+				format slot ({_num} + 9) of player with 1 paper named "&a%loop-index%" with lore "&7Click to accept." to close then run [json("%player%", "&6Arim>> ||&aClick here to accept a request.||ttp:&dClick me!||sgt:/tpaccept ")]
+			increase {_num} by 1
+			if {_num} > 8:
+				stop loop
+		format slot 31 of player with 1 name tag named "&eTP Here Requests" to be unstealable
+		set {_num} to 0
+		loop {tpas::%arg 1%::here::*}:
+			if {tpas::%arg 1%::here::%loop-index%} = 2:
+				format slot ({_num} + 27) of player with 1 mossy cobblestone named "&c[Expired] &a%loop-index%" with lore "&7Click to send a new request." to close then run [json("%player%", "&6Arim>> ||&aClick here to send a new request.||ttp:&dClick me!||sgt:/tpa || &e(/tpa)")]
+			else:
+				format slot ({_num} + 27) of player with 1 paper named "&a%loop-index%" with lore "&7Click to accept." to close then run [json("%player%", "&6Arim>> ||&aClick here to accept a request.||ttp:&dClick me!||sgt:/tpaccept ")]
+			increase {_num} by 1
+			if {_num} > 8:
+				stop loop
+		format slot 53 of player with 1 redstone block named "&cClose" to close
+
+function safePolarLoc(max.r: number, min.r: number, world: text = "{@World}", yaw: number = 0, pitch: number = 0) :: location:
+	set {_r} to random number between {_min.r} and {_max.r}
+	set {_o} to random number between 0 and 360
+	set {_x} to round({_r}*cos({_o}))
+	set {_z} to round({_r}*sin({_o}))
+	set {_loc} to location({_x}, 60, {_z}, "%{_world}%" parsed as world, {_yaw}, {_pitch})
+	if biome at {_loc} is not {@BlacklistedBiomes}:
+		if regions at {_loc} is not set:
+			loop blocks above {_loc}:
+				if loop-block is not air or water or lava or gravel or stone:
+					set {_block} to block above loop-block
+					if {_block} is air:
+						if sunlight level at {_block} > 10:
+							set {_block2} to block above {_block}
+							if {_block2} is air:
+								set {_block3} to block above {_block2}
+								if {_block3} is air:
+									set {_block4} to block above {_block3}
+									if {_block4} is air:
+										set {_y} to (y-coordinate of {_block} + 1)
+										return location({_x}, {_y}, {_z}, "%{_world}%" parsed as world)
+	return {spawn.Survival}
+
+function safeCartesianLoc(max.x: number, min.x: number, max.z: number, min.z: number, world: text = "{@World}", yaw: number = 0, pitch: number = 0) :: location:
+	set {_x} to round(random number between {_min.x} and {_max.x})
+	set {_z} to round(random number between {_min.z} and {_max.z})
+	chance of 50%:
+		set {_x} to (0-{_x})
+	chance of 50%:
+		set {_z} to (0-{_z})
+	set {_loc} to location({_x}, 60, {_z}, "%{_world}%" parsed as world, {_yaw}, {_pitch})
+	if biome at {_loc} is not {@BlacklistedBiomes}:
+		if regions at {_loc} is not set:
+			loop blocks above {_loc}:
+				if loop-block is not air or water or lava or gravel or stone:
+					set {_block} to block above loop-block
+					if {_block} is air:
+						if sunlight level at {_block} > 10:
+							set {_block2} to block above {_block}
+							if {_block2} is air:
+								set {_block3} to block above {_block2}
+								if {_block3} is air:
+									set {_block4} to block above {_block3}
+									if {_block4} is air:
+										set {_y} to (y-coordinate of {_block} + 1)
+										return location({_x}, {_y}, {_z}, "%{_world}%" parsed as world)
+	return {spawn.Survival}
+
+function safeTeleport(p: player, nm: text):
+	send "&aSearching&5..." to {_p}
+	set {_loc} to {spawn.Survival}
+	loop {@SearchAmount} times:
+		if {_loc} = {spawn.Survival}:
+#Current mode = polar
+#For cartesian boundaries.
+#			set {_loc} to safeCartesianLoc({@MaxX}, {@MinX}, {@MaxZ}, {@MinZ}, "{@World}")
+#For polar boundaries.
+			set {_loc} to safePolarLoc({@MaxR}, {@MinR}, "{@World}")
+			wait 1 tick
+		else:
+			stop loop
+	teleport {_p} to {_loc}
+	if {_loc} = {spawn.Survival}:
+		json("%{_p}%", "&6Arim>> &cSorry, a valid location could not be found.|| &7Try again in 5 seconds with &e/wild&7.||ttp:&dClick to try again.||cmd:/wild")
+		json("%{_p}%", "&6Arim>>|| &aYou were teleported to spawn instead.||ttp:&dClick to try again.||cmd:/wild")
+		wait 2 tick
+		send {_p} title "&cTry &e/wild &clater" with subtitle "&aWe couldn't find a good starting location for you." for 4 second
+	else:
+		set {rm::falldmg::%{_p}%} to now
+		if {surv::%{_nm}%::new} is true:
+			set {surv::%{_nm}%::new} to false
+		wait 2 tick
+		send "{@TeleportMsg}" to {_p}
+		play enderdragon wings at {_loc} with pitch 1
+		set {_textloc} to "a starting location."
+		send {_p} title "{@SuccessTitle}" with subtitle "{@SuccessSub}" {@SuccessTitleCustom}
+		set {surv::%{_nm}%::home::x} to x-coordinate of {spawn.Survival}
+		set {surv::%{_nm}%::home::y} to y-coordinate of {spawn.Survival}
+		set {surv::%{_nm}%::home::z} to z-coordinate of {spawn.Survival}
+		set {surv::%{_nm}%::home::world} to "CitiesTransfer"
+
+on damage:
+	if victim is a player:
+		if damage cause is fall:
+			if {rm::falldmg::%victim%} is set:
+				if difference between {rm::falldmg::%victim%} and now is less than 4 second:
+					cancel event
+				delete {rm::falldmg::%victim%}

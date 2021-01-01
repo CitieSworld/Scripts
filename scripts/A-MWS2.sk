@@ -1,0 +1,537 @@
+options:
+	CitiewFile: plugins/Skript/Players/%UUID of player%/Data.yml
+	CityHomeFile: plugins/Skript/Players/%UUID of player%/CityHome.yml
+	TradeFile: plugins/Skript/trades.yml
+	Perm: &cSorry, you can't use this.
+	UUIDFile: plugins/Skript/UUID-DB/%{_nm}%.yml
+	NameFile: plugins/Skript/Players/%{_uuid}%/CitiesInfo.yml
+
+function relativePath(absolute: text, sourcedir: text = "/home/anand/citiesworld/") :: text:
+	replace all {_sourcedir} in {_absolute} with ""
+	return {_absolute}
+
+function offlinePlayerUUID(uuid: text) :: text:
+	if arimsk whether id {_uuid} online:
+		return "%arimsk player from id {_uuid}%"
+	else if file "{@NameFile}" exists:
+		set {_nm} to skutil yml value "Name" of file "{@NameFile}"
+		return {_nm}
+	else:
+		return "Never-Been-Online"
+
+function offlineUUIDPlayer(nm: text) :: text:
+	if arimsk whether name "%{_nm}%" online:
+		return "%arimsk player from name {_nm}%"
+	else if file "{@UUIDFile}" exists:
+		set {_uuid} to skutil yml value "UUID" of file "{@UUIDFile}"
+		return {_uuid}
+	else:
+		return "Never-Been-Online"
+
+function setUUID(uuid: text, nm: text):
+	set skutil yml value "Name" of file "{@NameFile}" to {_nm}
+	set skutil yml value "UUID" of file "{@UUIDFile}" to {_uuid}
+
+on first join:
+	teleport player to {spawn.Cities}
+
+on join:
+	setUUID(UUID of player, name of player)
+	loop {save_trades::%UUID of player%::*}:
+		give player loop-value
+		send "&6Arim>> &aYou received &e%loop-value% &afrom &5%loop-index%&a."
+	delete {save_trades:%UUID of player%::*}
+
+Command /tradeitem [<text>]:
+	Executable by: players
+	Trigger:
+		if arg 1 is set:
+			if player's tool is not air:
+				set {_uuid} to offlineUUIDPlayer(arg 1)
+				if {_uuid} != "Never-Been-Online":
+					set {save_trades::%{_uuid}%::%UUID of player%} to player's tool
+				else:
+					send "&6Arim>> &cThat player has never been online."
+			else:
+				send "&6Arim>> &cYou can't trade air!"
+		else:
+			send "&6Arim>> &cUsage: /tradeitem &e<player>&c. &7Give an item to a player offline."
+
+on command "/pay":
+	if arguments is set:
+		log "%player%: %command% %arguments%" to "payments.log"
+	else:
+		log "%player%: %command% %arguments%" to "payments.log"
+
+function selectionVolume(p: player) :: number:
+	set {_loc1} to we pos 1 of {_p}
+	if "%world of {_loc1}%" != "%world of {_p}%":
+		return 0
+	set {_loc2} to we pos 2 of {_p}
+	if "%world of {_loc2}%" != "%world of {_p}%":
+		return 0
+	set {_x} to x-coordinate of {_loc1} - x-coordinate of {_loc2}
+	set {_y} to y-coordinate of {_loc1} - y-coordinate of {_loc2}
+	set {_z} to z-coordinate of {_loc1} - z-coordinate of {_loc2}
+	if {_x}*{_y}*{_z} < 0:
+		return (-1*{_x}*{_y}*{_z})
+	else:
+		return ({_x}*{_y}*{_z})
+
+function selectionHeight(p: player) :: number:
+	if we pos 1 of {_p} is set:
+		set {_loc1} to we pos 1 of {_p}
+		if "%world of {_loc1}%" != "%world of {_p}%":
+			return 0
+	else:
+		return 0
+	if we pos 2 of {_p} is set:
+		set {_loc1} to we pos 2 of {_p}
+		if "%world of {_loc2}%" != "%world of {_p}%":
+			return 0
+	else:
+		return 0
+	set {_y1} to y-coordinate of {_loc1}
+	set {_y2} to y-coordinate of {_loc2}
+	set {_y} to {_y1} - {_y2}
+	if {_y} < 0:
+		return (1+(-1*{_y}))
+	else:
+		return (1+{_y})
+
+function selectionArea(p: player) :: number:
+	set {_vol} to volume of we selection of {_p}
+	set {_height} to selectionHeight({_p})
+	if {_height} != 0:
+		return ({_vol}/{_height})
+	else:
+		return 0
+
+Command /mwsdragon:
+	Aliases: /citiesdragon
+	Executable by: players
+	Permission: arim.buildcity
+	Trigger:
+		if player is in "CitiesTransfer_the_end":
+			if number of all ender dragons in "CitiesTransfer_the_end" < 1:
+				set {_loc} to location(0, 70, 0, "CitiesTransfer_the_end" parsed as world)
+				spawn ender dragon at {_loc}
+				send "&6Arim>> &aDragon spawned."
+			else:
+				send "&6Arim>> &cThere is already a dragon!"
+		else:
+			send "&6Arim>> &cYou must be in the end."
+
+on load:
+	set {spawn.Cities} to location(310.5, 66, 380.5, "CitiesTransfer" parsed as world)
+	if number of all ender dragons in "CitiesTransfer_the_end" parsed as world < 1:
+		set {_loc} to location(0, 70, 0, "CitiesTransfer_the_end" parsed as world)
+		spawn ender dragon at {_loc}
+
+Command /spawn:
+	Executable by: players
+	Trigger:
+		teleport player to {spawn.Cities}
+		send "&6Arim>> &aTeleported to spawn."
+
+on death of ender dragon:
+	if victim is in "CitiesTransfer_the_end":
+		broadcast "&7The &5Enderdragon &7was slain by &e&l%attacker%&7!" to "CitiesTransfer_the_end"
+		broadcast "&7The &5Enderdragon &7was slain by &e&l%attacker%&7!" to "CitiesTransfer_nether"
+		broadcast "&7The &5Enderdragon &7was slain by &e&l%attacker%&7!" to "CitiesTransfer"
+
+on join:
+	if file "{@CityHomeFile}" does not exist:
+		load yaml "{@CityHomeFile}" as "{@CityHomeFile}"
+		set yaml value "X" from "{@CityHomeFile}" to x-coordinate of {spawn.Cities}
+		set yaml value "Y" from "{@CityHomeFile}" to y-coordinate of {spawn.Cities}
+		set yaml value "Z" from "{@CityHomeFile}" to z-coordinate of {spawn.Cities}
+		set yaml value "World" from "{@CityHomeFile}" to "CitiesTransfer"
+		set yaml value "Yaw" from "{@CityHomeFile}" to yaw of {spawn.Cities}
+		set yaml value "Pitch" from "{@CityHomeFile}" to pitch of {spawn.Cities}
+		save yaml "{@CityHomeFile}"
+	else:
+		load yaml "{@CityHomeFile}" as "{@CityHomeFile}"
+	if file "{@CitiewFile}" does not exist:
+		load yaml "{@CitiewFile}" as "{@CitiewFile}"
+		set yaml value "Tables" from "{@CitiewFile}" to 3
+		set yaml value "HasClaim" from "{@CitiewFile}" to 0
+		set yaml value "Blocks" from "{@CitiewFile}" to 40
+		set yaml value "RTP" from "{@CitiewFile}" to 0
+		save yaml "{@CitiewFile}"
+	else:
+		load yaml "{@CitiewFile}" as "{@CitiewFile}"
+	set {cityhome::%name of player%::x} to yaml value "X" from "{@CityHomeFile}"
+	set {cityhome::%name of player%::y} to yaml value "Y" from "{@CityHomeFile}"
+	set {cityhome::%name of player%::z} to yaml value "Z" from "{@CityHomeFile}"
+	set {cityhome::%name of player%::world} to yaml value "World" from "{@CityHomeFile}"
+	set {cityhome::%name of player%::yaw} to yaml value "Yaw" from "{@CityHomeFile}"
+	set {cityhome::%name of player%::pitch} to yaml value "Pitch" from "{@CityHomeFile}"
+	set {citiew::%name of player%::tables} to yaml value "Tables" from "{@CitiewFile}"
+	set {citiew::%name of player%::hasclaim} to yaml value "HasClaim" from "{@CitiewFile}"
+	set {citiew::%name of player%::blocks} to yaml value "Blocks" from "{@CitiewFile}"
+	set {citiew::%name of player%::rtp} to yaml value "RTP" from "{@CitiewFile}"
+	unload yaml "{@CityHomeFile}"
+	unload yaml "{@CitiewFile}"
+
+on quit:
+	load yaml "{@CityHomeFile}" as "{@CityHomeFile}"
+	load yaml "{@CitiewFile}" as "{@CitiewFile}"
+	set yaml value "X" from "{@CityHomeFile}" to {cityhome::%name of player%::x}
+	set yaml value "Y" from "{@CityHomeFile}" to {cityhome::%name of player%::y}
+	set yaml value "Z" from "{@CityHomeFile}" to {cityhome::%name of player%::z}
+	set yaml value "World" from "{@CityHomeFile}" to {cityhome::%name of player%::world}
+	set yaml value "Yaw" from "{@CityHomeFile}" to {cityhome::%name of player%::yaw}
+	set yaml value "Pitch" from "{@CityHomeFile}" to {cityhome::%name of player%::pitch}
+	set yaml value "Tables" from "{@CitiewFile}" to {citiew::%name of player%::tables}
+	set yaml value "HasClaim" from "{@CitiewFile}" to {citiew::%name of player%::hasclaim}
+	set yaml value "Blocks" from "{@CitiewFile}" to {citiew::%name of player%::blocks}
+	set yaml value "RTP" from "{@CitiewFile}" to {citiew::%name of player%::rtp}
+	save yaml "{@CityHomeFile}"
+	save yaml "{@CitiewFile}"
+	unload yaml "{@CityHomeFile}"
+	unload yaml "{@CitiewFile}"
+	delete {cityhome::%name of player%::*}
+	delete {citiew::%name of player%::*}
+
+on skript stop:
+	if {cityhome::*} is set:
+		delete {cityhome::*}
+
+#   json.sk by RezzedUp
+#   ---
+#   Version: 2.3
+#   Requires: Skript 2.2
+#   ---
+#   Contributors:
+#   - RezzedUp
+#   - JKGamerxD
+#
+#   General usage:
+#       
+#   ==> json(<recipient>, <text in json.sk format>, <OPTIONAL: whether or not to convert color codes>) :: returns nothing
+#
+#           This function handles everything you could ever need regarding json.
+#           Everything is automatic with it, you just need to provide the proper json.sk notatation and someone to recieve the message!
+#
+#           --> example #1:
+#               set {_to} to "@a"
+#               set {_msg} to "&6Hello, this is a &ejson message&6!||ttp:&b&oSuper duper cool!||cmd:/msg RezzedUp You rock!!!!"
+#               json({_to}, {_msg})
+#
+#           --> example #2:                        v [NEW]
+#               json("%player%", "&6:D||&5Neat", false)
+#                                                  ^
+#                                                  json.sk won't convert color codes if set to false.
+#                                                  If no value is set, it will convert color codes by default.
+#
+#   ==> jsonFormat(<text in json.sk format>) :: returns text
+#
+#           The purpose of this function is to return the formatted peice of json for your own use.
+#           You can set up your own /tellraw with it
+#
+#           --> example:
+#               set {_toBeJson} to "I will return a json!||ttp:It's true!"
+#               set {_jsonText} to jsonFormat({_toBeJson})
+#               execute console command "/tellraw myUserName %{_jsonText}%"
+#
+
+#
+#   JSON.SK NOTATION:
+#   --> How to create json's!
+#
+#   <always start with normal text>||<3 letter tag>:<text>||<regular text, new json cluster>
+#                                  ^
+#                                 "||" separates each segment.
+#
+#   json.sk notation follows these rules:
+#       1. A cluster of json is formed at each regular text segment.
+#       2. There may be only one hoverable and one clickable event per cluster, otherwise things could get messy.
+#       3. Json effects are defined by a 3 letter tag at the very start of a segment, followed directly by a colon.
+#       4. "||" should only ever be used to separate each json segment.
+#
+#   Json Effect Tags:
+#       ttp:
+#        --> Tooltip, hover event
+#       cmd:
+#        --> Run command, click event
+#       sgt:
+#        --> Suggest command, click event
+#       url:
+#        --> Open url, click event
+#       ins:
+#        --> Adds an "insertion", shift + click event
+#            | For more information about the "insertion" attribute, visit 
+#            | http://www.minecraftforum.net/forums/minecraft-discussion/redstone-discussion-and/351959#insertion
+#
+#   Example json.sk notation:
+#
+#       
+#       "Hello, this is a sample json.||ttp:&bI'm a tooltip for the first cluster.||There's no tag, so I've started a new cluster.||cmd:/ping"
+#        |_______________________________________________________________________|  |_______________________________________________________|
+#                                           |                                                                   |
+#                                   JSON Cluster #1                                                      JSON Cluster #2
+#
+#
+#       The above json.sk notation purely as their segment types:
+#
+#       "<        regular text       >||<ttp:              tooltip               >||<    regular text, starting a new cluster    >||<cmd:/command>"
+
+options:
+    debug: false
+    codes: 0|1|2|3|4|5|6|7|8|9|a|b|c|d|e|f|k|l|m|n|o|r
+    
+#
+#   FUNCTION: Remove all `&` color codes.
+#   -> Usage:
+#             Geneal purpose function to remove color codes.
+#             This function will not remove color codes already converted.
+#
+    
+function removeColor(msg: text) :: text:
+    set {_m::*} to {_msg} split at ""
+    
+    set {_color-codes} to "{@codes}"
+    set {_colors::*} to {_color-codes} split at "|"
+    
+    set {_new} to ""
+    
+    loop {_m::*}:
+        set {_char} to loop-value
+        set {_prev} to the last character of {_new}
+        
+        if {_prev} is "&":
+        
+            loop {_colors::*}:
+            
+                if loop-value-2 is {_char}:
+                    set {_skip} to true
+                
+        if {_skip} is set:
+            delete {_skip}
+            
+        else:
+            set {_new} to "%{_new}%%{_char}%"
+                
+    return {_new}
+
+#
+#   FUNCTION: Replace all `&` color codes with valid JSON color codes.
+#   -> Usage:
+#             Used by json functions to convert color codes.
+#
+    
+function jsonColorize(msg: text, default-color: text = "&r") :: text:
+    set {_m::*} to {_msg} split at ""
+    
+    set {_color-codes} to "{@codes}"
+    set {_colors::*} to {_color-codes} split at "|"
+    
+    set {_color} to colored {_default-color}
+    set {_code} to the first character of {_color}
+    
+    set {_new} to ""
+    set {_skip} to 0
+    
+    loop amount of {_m::*} times:
+    
+        if {_skip} is more than or equal to 1:
+            subtract 1 from {_skip}
+            
+        else:
+            set {_char} to {_m::%loop-number%}
+            set {_next} to {_m::%loop-number + 1%}
+            
+            if {@debug} is true:
+                broadcast "&a[Character Check] &r%loop-number%: &7%{_char}% &r&onext: &8%{_next}% &r[%{_color}%color&r]"
+            
+            if {_char} is "&" or {_code}:
+            
+                if {@debug} is true:
+                    broadcast "&a[Color Check] &rFOUND: &o%{_char}%%{_next}% &7&m<--&7&o is it valid?"
+            
+                loop {_colors::*}:
+                
+                    if loop-value-2 is {_next}:
+                        set {_color} to "%{_color}%%{_code}%%{_next}%"
+                        
+                        if {_next} is "r":
+                            set {_color} to {_default-color}
+                            
+                        set {_new} to "%{_new}%%{_color}%"
+                        set {_skip} to 1
+                        
+                if {_skip} is less than or equal to 0:
+                    set {_new} to "%{_new}%%{_char}%"
+                
+            else if {_char} is " ":
+                set {_new} to "%{_new}% %{_color}%"
+            
+            else:
+                set {_new} to "%{_new}%%{_char}%"
+                
+    return {_new}
+    
+#
+#    FUNCTION: Replace all json-breaking characters.
+#    -> Usage:
+#              Used by json functions to avoid errors.
+#              Allows usage of quotes and back-slashes in your json.
+#
+
+function jsonSanitize(msg: text) :: text:
+    if {@debug} is true:
+        broadcast "&a[Sanitize] &7&oSanitizing input..."
+        
+    set {_m::*} to {_msg} split at ""
+    
+    loop {_m::*}:
+    
+        if loop-value is """":
+            set {_m::%loop-index%} to "\""" # """
+            
+        else if loop-value is "\":
+            set {_m::%loop-index%} to "\\"
+            
+    set {_new} to join {_m::*} with ""
+    return {_new}
+    
+#
+#    FUNCTION: Generate a new /tellraw json object from a json.sk-notation string.
+#    -> Usage:
+#              See the top of this skript, listed under general usage.
+#
+
+function jsonFormat(msg: text, color: boolean = true) :: text:
+    set {_m::*} to {_msg} split at "||"
+    
+    set {_current} to 1
+    
+    loop {_m::*}:
+        if {_clusters::%{_current}%} is not set:
+            set {_clusters::%{_current}%} to ""
+        
+        if {_clusters::%{_current}%::text} is not set:
+            set {_clusters::%{_current}%::text} to jsonSanitize(loop-value)
+            
+        else:
+            set {_tag} to the first 4 characters of loop-value
+            set {_value} to subtext of loop-value from characters 5 to the length of loop-value
+            
+            if {_tag} is "ttp:":
+                set {_clusters::%{_current}%::tooltip} to jsonSanitize({_value})
+                
+            else if {_tag} is "cmd:":
+                set {_clusters::%{_current}%::command} to jsonSanitize({_value})
+                
+            else if {_tag} is "sgt:":
+                set {_clusters::%{_current}%::suggest} to jsonSanitize({_value})
+                
+            else if {_tag} is "url:":
+            
+                if {_value} doesn't contain "http://" or "https://":
+                    set {_value} to "http://%{_value}%"
+                    
+                set {_clusters::%{_current}%::url} to jsonSanitize({_value})
+                
+            else if {_tag} is "ins:":
+                set {_clusters::%{_current}%::insertion} to jsonSanitize({_value})
+                
+            else:
+                add 1 to {_current}
+                set {_clusters::%{_current}%::text} to jsonSanitize(loop-value)
+                set {_clusters::%{_current}%} to ""
+                
+            if {@debug} is true:
+                broadcast "&a[Tag Check] &3cluster:&b%{_current}% &8(&f&o%{_tag}%&8)"
+     
+    loop {_clusters::*}:
+    
+        if {@debug} is true:
+            broadcast "&a[Cluster Check] &7&oCluster ##%loop-index% exists."
+            
+        set {_i} to loop-index
+        
+        set {_text} to {_clusters::%{_i}%::text}
+        
+        if {_color} is true:
+            set {_text} to jsonColorize({_text})
+            
+        if {_json} is not set:
+            set {_json} to "{""text"":""%{_text}%"""
+        else:
+            set {_json} to "%{_json}%,{""text"":""%{_text}%"""
+        
+        if {_clusters::%{_i}%::tooltip} is set:
+        
+            if {_color} is true:
+                set {_tooltip} to jsonColorize({_clusters::%{_i}%::tooltip})
+                
+            else:
+                set {_tooltip} to {_clusters::%{_i}%::tooltip}
+                
+            set {_json} to "%{_json}%,""hoverEvent"":{""action"": ""show_text"",""value"": ""%{_tooltip}%""}"
+        
+        if {_clusters::%{_i}%::insertion} is set:
+            set {_json} to "%{_json}%,""insertion"":""%{_clusters::%{_i}%::insertion}%"",""obfuscated"":false"
+        
+        if {_clusters::%{_i}%::command} is set:
+            set {_clickable} to "%{_json}%,""clickEvent"":{""action"":""run_command"",""value"":""%{_clusters::%{_i}%::command}%""}"
+            
+        if {_clusters::%{_i}%::suggest} is set:
+            set {_clickable} to "%{_json}%,""clickEvent"":{""action"": ""suggest_command"",""value"": ""%{_clusters::%{_i}%::suggest}%""}"
+            
+        if {_clusters::%{_i}%::url} is set:
+            set {_clickable} to "%{_json}%,""clickEvent"":{""action"": ""open_url"",""value"": ""%{_clusters::%{_i}%::url}%""}"
+            
+        if {_clickable} is set:
+            set {_json} to "%{_clickable}%}"
+            delete {_clickable}
+            
+        else:
+            set {_json} to "%{_json}%}"
+    
+    return "{""text"":"""", ""extra"":[%{_json}%]}"
+    
+#
+#    FUNCTION: Send a json message with json.sk-notation.
+#    -> Usage:
+#              See the top of this skript, listed under general usage.
+#
+
+function json(to: text, msg: text, color: boolean = true):
+    set {_msg} to jsonFormat({_msg}, {_color})
+    execute console command "/tellraw %{_to}% %{_msg}%"
+    
+    if {@debug} is true:
+        set {_player} to {_to} parsed as offline player
+        if {_player} is online:
+            send uncolored {_msg} to {_player}
+            
+#
+#    FUNCTION: Broadcast a json message with json.sk-notation.
+#
+
+function jsonBroadcast(msg: text, color: boolean = true):
+    json("@a", {_msg}, {_color})
+        
+#
+#    COMMAND:  A command to show that these json functions really work!
+#    -> Usage:
+#              /json recipient <text in json.sk notation>
+#              It's just a test command, not in best practice to use this instead of the json function.
+#
+ 
+command /json [<text>] [<text>]:
+        permission: arim.json
+        Permission message: {@Perm}
+        trigger:
+                set {_to} to arg 1
+                set {_msg} to arg 2
+ 
+                if arg 1 is not set:
+                        set {_to} to "%player%"
+                if arg 2 is not set:
+                        set {_msg} to "This is a json message! &c&oClick here for no reason!||ttp:&lReally, click your mouse!||cmd:/json @a %{_to}% clicked their mouse on json..."
+ 
+                json({_to}, {_msg})

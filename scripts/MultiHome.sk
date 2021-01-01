@@ -1,0 +1,138 @@
+#
+# ---- Multi-Home Script ----
+#
+# Made by Aerodactyl_
+#
+#
+options:
+	FileSave: plugins/Skript/MultiHome.yml
+	NoPermission: &6Arim>> &cSorry, you can't use this.
+	UsePerm: multihome.user.use
+	SetPerm: multihome.user.set
+	DelPerm: multihome.user.delete
+	ListPerm: multihome.user.list
+	UseAliases: /tphome
+	SetAliases: /homeset
+	DelAliases: /delhome
+	ListAliases: /listhome, /listhomes, /homelist
+	UseSuccessful: &6Arim> &aYou teleported to &e%{_id}%&a.
+	SetSuccessful: &6Arim>> &aYou set your home for &e%{_id}%&a.
+	DelSuccessful: &6Arim>> &aDeleted home &e%{_id}%&a.
+	ListSuccessful: &6Arim>> &aYour homes:||%{_list}%.
+	HomeDoesNotExist: &6Arim>> &cThe home you specified does not exist. &7(%arg 1%)%nl%&7Set a home with &e/sethome&7.
+	WarningBackup: &6Arim>> &7Your previous home for &e%{_id}%&7 is at &e/home backup&7.
+	ListEntry: || &7/ &f%{_id}%||ttp:&7%x-coordinate of {_loc}%, %y-coordinate of {_loc}%, %z-coordinate of {_loc}% in %world of {_loc}%||cmd:/home %{_id}%
+	ListNoHomes: &6Arim>> &cNo homes found. &7Set a home with &e/sethome&7.
+
+on load:
+	load yaml "{@FileSave}" as "{@FileSave}"
+
+on unload:
+	save yaml "{@FileSave}"
+	unload yaml "{@FileSave}"
+
+function setHome(uuid: text, id: text, loc: location):
+	set yaml value "%{_uuid}%.homes.%{_id}%.X" from "{@FileSave}" to x-coordinate of {_loc}
+	set yaml value "%{_uuid}%.homes.%{_id}%.Y" from "{@FileSave}" to y-coordinate of {_loc}
+	set yaml value "%{_uuid}%.homes.%{_id}%.Z" from "{@FileSave}" to z-coordinate of {_loc}
+	set yaml value "%{_uuid}%.homes.%{_id}%.World" from "{@FileSave}" to "%world of {_loc}%"
+	set yaml value "%{_uuid}%.homes.%{_id}%.Yaw" from "{@FileSave}" to yaw of {_loc}
+	set yaml value "%{_uuid}%.homes.%{_id}%.Pitch" from "{@FileSave}" to pitch of {_loc}
+	add {_id} to yaml list "%{_uuid}%.ids" from "{@FileSave}"
+
+function homeExists(uuid: text, id: text) :: boolean:
+	loop yaml list "%{_uuid}%.ids" from "{@FileSave}":
+		if loop-value = {_id}:
+			return true
+	return false
+
+function getHome(uuid: text, id: text) :: location:
+	set {_x} to yaml value "%{_uuid}%.homes.%{_id}%.X" from "{@FileSave}"
+	set {_y} to yaml value "%{_uuid}%.homes.%{_id}%.Y" from "{@FileSave}"
+	set {_z} to yaml value "%{_uuid}%.homes.%{_id}%.Z" from "{@FileSave}"
+	set {_world} to yaml value "%{_uuid}%.homes.%{_id}%.World" from "{@FileSave}"
+	set {_yaw} to yaml value "%{_uuid}%.homes.%{_id}%.Yaw" from "{@FileSave}"
+	set {_pitch} to yaml value "%{_uuid}%.homes.%{_id}%.Pitch" from "{@FileSave}"
+	return location({_x}, {_y}, {_z}, "%{_world}%" parsed as world, {_yaw}, {_pitch})
+
+function clearHome(uuid: text, id: text):
+	delete yaml value "%{_uuid}%.homes.%{_id}%" from "{@FileSave}"
+	remove "%{_id}%" from yaml list "%{_uuid}%.ids" from "{@FileSave}"
+
+function getHomeIds(uuid: text) :: texts:
+	return yaml list "%{_uuid}%.ids" from "{@FileSave}"
+
+Command /home [<text>]:
+	Aliases: {@UseAliases}
+	Permission: {@UsePerm}
+	Permission message: {@NoPermission}
+	Executable by: players
+	Trigger:
+		if arg 1 is set:
+			set {_id} to arg 1
+		else:
+			set {_id} to "main"
+		if homeExists(player's UUID, {_id}) = true:
+			teleport player to getHome(player's UUID, {_id})
+			send "{@UseSuccessful}"
+		else:
+			send "{@HomeDoesNotExist}"
+
+Command /sethome [<text>]:
+	Aliases: {@SetAliases}
+	Permission: {@SetPerm}
+	Permission message: {@NoPermission}
+	Executable by: players
+	Trigger:
+		if arg 1 is set:
+			set {_id} to arg 1
+		else:
+			set {_id} to "main"
+		if homeExists(player's UUID, {_id}) = true:
+			set {_prev} to getHome(player's UUID, {_id})
+			setHome(player's UUID, "backup", {_prev})
+			setHome(player's UUID, {_id}, player's location)
+			send "{@WarningBackup}"
+			send "{@SetSuccessful}"
+		else:
+			setHome(player's UUID, {_id}, player's location)
+			send "{@SetSuccessful}"
+
+Command /delhome [<text>]:
+	Aliases: {@DelAliases}
+	Permission: {@DelPerm}
+	Permission message: {@NoPermission}
+	Executable by: players
+	Trigger:
+		if arg 1 is set:
+			set {_id} to arg 1
+		else:
+			set {_id} to "main"
+		if homeExists(player's UUID, {_id}) = true:
+			set {_prev} to getHome(player's UUID, {_id})
+			setHome(player's UUID, "backup", {_prev})
+			clearHome(player's UUID, {_id})
+			send "{@DelSuccessful}"
+			send "{@WarningBackup}"
+		else:
+			send "{@HomeDoesNotExist}"
+
+Command /homes:
+	Aliases: {@ListAliases}
+	Permission: {@ListPerm}
+	Permission message: {@NoPermission}
+	Executable by: players
+	Trigger:
+		set {_homes::*} to getHomeIds(player's UUID)
+		if size of {_homes::*} > 0:
+			set {_list} to ""
+			loop {_homes::*}:
+				set {_id} to loop-value
+				set {_loc} to getHome(player's UUID, {_id})
+				if {_list} = "":
+					set {_list} to "{@ListEntry}"
+				else:
+					set {_list} to "%{_list}%{@ListEntry}"
+			json("%name of player%", "{@ListSuccessful}")
+		else:
+			send "{@ListNoHomes}"

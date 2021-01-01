@@ -1,0 +1,51 @@
+options:
+	SaveFile: plugins/Skript/ASC/SavedLocations.yml
+
+function locApiSet(chain: text, loc: location):
+	set {_x} to x-coordinate of {_loc}
+	set {_y} to y-coordinate of {_loc}
+	set {_z} to z-coordinate of {_loc}
+	set {_world} to "%world of {_loc}%"
+	add "%{_x}%|%{_y}%|%{_z}%|%{_world}%" to yaml list {_chain} from "{@SaveFile}"
+
+function locApiRemove(chain: text, loc: location):
+	set {_x} to x-coordinate of {_loc}
+	set {_y} to y-coordinate of {_loc}
+	set {_z} to z-coordinate of {_loc}
+	set {_world} to "%world of {_loc}%"
+	remove "%{_x}%|%{_y}%|%{_z}%|%{_world}%" from yaml list {_chain} from "{@SaveFile}"
+
+function locApiCheck(chain: text, loc: location) :: boolean:
+	set {_x} to x-coordinate of {_loc}
+	set {_y} to y-coordinate of {_loc}
+	set {_z} to z-coordinate of {_loc}
+	set {_world} to "%world of {_loc}%"
+	loop yaml list {_chain} from "{@SaveFile}":
+		if "%loop-value%" = "%{_x}%|%{_y}%|%{_z}%|%{_world}%":
+			return true
+	return false
+
+function locApiGetAll(chain: text) :: locations:
+	loop yaml list {_chain} from "{@SaveFile}":
+		set {_txt} to "%loop-value%"
+		set {_info::*} to {_txt} split by "|"
+		set {_loc} to location("%{_info::1}%" parsed as number, "%{_info::2}%" parsed as number, "%{_info::3}%" parsed as number, "%{_info::4}%" parsed as world)
+		if {_loc} is set:
+			add {_loc} to {_locations::*}
+	return {_locations::*}
+
+function locApiUnsafeInsert(chain: text, data: text):
+	add {_data} to yaml list {_chain} from "{@SaveFile}"
+
+function locApiUnsafeRemove(chain: text, data: text):
+	remove {_data} from yaml list {_chain} from "{@SaveFile}"
+
+function locApiUnsafeGetAll(chain: text) :: texts:
+	return yaml list {_chain} from "{@SaveFile}"
+
+on load:
+	load yaml "{@SaveFile}" as "{@SaveFile}"
+
+on unload:
+	save yaml "{@SaveFile}"
+	unload yaml "{@SaveFile}"

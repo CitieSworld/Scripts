@@ -1,0 +1,265 @@
+options:
+	VNRw: in world CitiesTransfer_nether
+	VNRprefix: &5Via Nether Railroad>
+	VFurnW: vfurnmain in world CitiesTransfer and vc1 in world CitiesTransfer
+	AeroUUID: ed5f12cd-6007-45d9-a4b9-940524ddaecf
+	LavaCost: 20
+	VCprefix: &5Via City>
+	NumberVCs: 8
+	NumberVLs: 11
+
+variables:
+	{vnrcheck.%player%} = 0
+	{vnrcart.%player%} = 0
+	{vfurn.%player%} = 0
+
+function isInVC(loc: location) :: boolean:
+	if world of {_loc} is "CitiesTransfer":
+#		if "%regions at {_loc}%" is "vcbuild1 in world CitiesTransfer and vc1 in world CitiesTransfer" or "vcbuild2 in world CitiesTransfer and vc2 in world CitiesTransfer" or "vcbuild3 in world CitiesTransfer and vc3 in world CitiesTransfer" or "vcbuild4 in world CitiesTransfer and vc4 in world CitiesTransfer" or "vcbuild5 in world CitiesTransfer and vc5 in world CitiesTransfer" or "vcbuild6 in world CitiesTransfer and vc6 in world CitiesTransfer":
+#			return true
+		if "%regions at {_loc}%" starts with "vc":
+			return true
+		if "%regions at {_loc}%" starts with "nh":
+			return true
+		if "%regions at {_loc}%" contains "nh2 in world CitiesTransfer":
+			return true
+	return false
+function isInVL(loc: location) :: boolean:
+	if world of {_loc} is "CitiesTransfer":
+		if "%regions at {_loc}%" starts with "vl":
+			return true
+	return false
+function isInBizZone(loc: location) :: boolean:
+	if world of {_loc} is "CitiesTransfer":
+		if isInVC({_loc}) is true:
+			if "%regions at {_loc}%" contains "home":
+				return true
+	return false
+
+on damage:
+	if victim is villager or cow or mooshroom or sheep or pig or donkey or horse or chicken or rabbit or wolf or ocelot:
+		if isInVL(location of victim) is true:
+			if attacker is player:
+				send "{@VCprefix} &cViolence is &n&lNOT&r&c allowed in Via Nation."
+				execute console command "/rmm vl {@NumberVLs} %name of attacker% CitiesTransfer"
+				cancel event
+		else if isInVC(location of victim) is true:
+			if attacker is player:
+				send "{@VCprefix} &cViolence is &n&lNOT&r&c allowed in Via Nation."
+				execute console command "/rmm vc {@NumberVCs} %name of attacker% CitiesTransfer"
+				cancel event
+
+on region enter:
+	if world is "CitiesTransfer":
+		if "%region%" is "vfurnmain in world CitiesTransfer":
+			if {vfurn.%player%} != 0:
+				delete {vfurn.%player%}
+
+on region exit:
+	if world is "CitiesTransfer":
+		if "%region%" is "vfurnmain in world CitiesTransfer":
+			if {vfurn.%player%} > 1:
+				log "%player% took %{vfurn.%player%}% lava buckets from the Via City smeltery." to "vfurn.log"
+				set {_units} to {@LavaCost}*{vfurn.%player%}
+				send "&5Via City Smeltery> &aYou took &e%{vfurn.%player%}% &alava buckets for a price of &5%{_units}% &aunits. Thank you for using the Via City Smeltery."
+			else if {vfurn.%player%} = 1:
+				log "%player% took a lava bucket from the Via City smeltery." to "vfurn.log"
+				send "&5Via City Smeltery> &aYou took a lava bucket for a price of &5{@LavaCost} &aunits. Thank you for using the Via City Smeltery."
+			else:
+				log "%player% did not take any lava buckets from the Via City smeltery." to "vfurn.log"
+			delete {vfurn.%player%}
+
+on bucket fill:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of player's targeted block
+		if "%regions at {_loc}%" = "{@VFurnW}":
+			if the event was not cancelled:
+				increase {vfurn.%player%} by 1
+
+on break:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of event-block
+		if "%regions at {_loc}%" = "{@VFurnW}":
+			if UUID of player != "{@AeroUUID}":
+				cancel event
+on place:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of event-block
+		if "%regions at {_loc}%" = "{@VFurnW}":
+			if UUID of player != "{@AeroUUID}":
+				cancel event
+
+on explode:
+	if event-entity is creeper:
+		if event-entity is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+			set {_found} to false
+			set {_loc1} to event-location
+			loop all entities in radius 30 around {_loc1}:
+				set {_loc2} to location of loop-entity
+				set {_dist} to distance between {_loc1} and {_loc2}
+				if loop-entity is player:
+					log "Creeper exploded in (%regions at {_loc1}%) at (%x-coordinate of event-entity%, %y-coordinate of event-entity%, %z-coordinate of event-entity% in %world of event-entity%). Player %name of loop-entity% was %{_dist}% blocks away in (%regions at loop-entity%) at (%x-coordinate of loop-entity%, %y-coordinate of loop-entity%, %z-coordinate of loop-entity% in %world of loop-entity%) in gm %gamemode of loop-entity%." to "citiescreepers.log"
+				else:
+					log "Creeper exploded in (%regions at {_loc1}%) at (%x-coordinate of event-entity%, %y-coordinate of event-entity%, %z-coordinate of event-entity% in %world of event-entity%). Entity %loop-entity% was %{_dist}% blocks away in (%regions at loop-entity%) at (%x-coordinate of loop-entity%, %y-coordinate of loop-entity%, %z-coordinate of loop-entity% in %world of loop-entity%)." to "citiescreepers.log"
+				set {_found} to true
+			if {_found} is false:
+				log "Creeper exploded in (%regions at {_loc1}%) at (%x-coordinate of event-entity%, %y-coordinate of event-entity%, %z-coordinate of event-entity% in %world of event-entity%). No entity was within 30 blocks." to "citiescreepers.log"
+
+on shear:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of player's targeted entity
+		if isInVC({_loc}) is true:
+			if UUID of player != "{@AeroUUID}":
+				cancel event
+				stop
+		if isInVL({_loc}) is true:
+			loop regions at event-location:
+				set {_isOwner} to false
+				set {_isMember} to false
+				loop owners of loop-value:
+					if "%loop-value-2%" is "%player%":
+						set {_isOwner} to true
+				loop members of loop-value:
+					if "%loop-value-2%" is "%player%":
+						set {_isMember} to true
+				if {_isMember} != true:
+					if {_isOwner} != true:
+						cancel event
+						send "{@VCprefix} &cSorry,&7 you were denied. Contact Aerodactyl_ for details."
+						stop
+			send "{@VCprefix} &aYou are allowed to shear this animal."
+on mount:
+	set {_loc} to location of event-entity
+	if world of {_loc} is "CitiesTransfer":
+		if "%vehicle of event-entity%" is "horse":
+			set {_nm} to "%event-entity%"
+			set {_p} to "%{_nm}%" parsed as player
+			if isInVC({_loc}) is true:
+				loop regions at event-location:
+					set {_isOwner} to false
+					set {_isMember} to false
+					loop owners of loop-value:
+						if "%loop-value-2%" is "%{_nm}%":
+							set {_isOwner} to true
+					loop members of loop-value:
+						if "%loop-value-2%" is "%{_nm}%":
+							set {_isMember} to true
+					if {_isOwner} != true:
+						cancel event
+						send "{@VCprefix} &cSorry,&7 you were denied. Contact Aerodactyl_ for details." to event-entity
+						stop
+				send "{@VCprefix} &aYou are allowed to ride this animal." to event-entity
+				stop
+			if isInVL({_loc}) is true:
+				loop regions at event-location:
+					set {_isOwner} to false
+					set {_isMember} to false
+					loop owners of loop-value:
+						if "%loop-value-2%" is "%{_nm}%":
+							set {_isOwner} to true
+					loop members of loop-value:
+						if "%loop-value-2%" is "%{_nm}%":
+							set {_isMember} to true
+					if {_isMember} != true:
+						if {_isOwner} != true:
+							cancel event
+							send "{@VCprefix} &cSorry,&7 you were denied. Contact Aerodactyl_ for details." to event-entity
+							stop
+				send "{@VCprefix} &aYou are allowed to ride this animal." to event-entity
+
+options:
+#detcom or Aerodactyl_ or asintubBilly or Ecotastic or soccerskin or iiFoxish
+	DetazonAllowed: "db2bc8bc-1aaf-4b8b-9d56-df3793045951" or "ed5f12cd-6007-45d9-a4b9-940524ddaecf" or "33a12976-4b9e-48c5-8b82-4f31745d2f3d" or "00140fe8-de08-41e9-ab79-e53b9f3f0fbd" or "1a49201d-a06a-4e45-9877-c5aa5493a16a" or "840d1667-a0e2-4934-a3bd-1a7ebbbc0732"
+
+on rightclick on button:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of targeted block
+		if "%regions at {_loc}%" = "detcombuild1 in world CitiesTransfer, vcbuild8 in world CitiesTransfer and vc8 in world CitiesTransfer":
+			if UUID of player is {@DetazonAllowed}:
+				send "&aAccess granted."
+			else:
+				cancel event
+				send "&cAccess denied."
+on rightclick on lever:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of targeted block
+		if isInVC({_loc}) is true:
+			if isInBizZone({_loc}) is false:
+				if UUID of player != "{@AeroUUID}":
+					cancel event
+	else if player is in "CitiesTransfer_nether":
+		set {_loc} to location of targeted block
+		if "%regions at {_loc}%" is "vns1 {@VNRw}" or "vns2 {@VNRw}":
+			if UUID of player != "{@AeroUUID}":
+				cancel event
+on rightclick on trapdoor:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of targeted block
+		if isInVC({_loc}) is true:
+			if UUID of player != "{@AeroUUID}":
+				cancel event
+on rightclick on fence gate:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of targeted block
+		if isInVC({_loc}) is true:
+			if UUID of player != "{@AeroUUID}":
+				cancel event
+
+on region enter:
+	if world is "CitiesTransfer_nether":
+		if "%region%" is "vns1 {@VNRw}" or "vns2 {@VNRw}":
+			if {vnrcheck.%player%} != 1:
+				set {vnrcheck.%player%} to 1
+
+on region exit:
+	if world is "CitiesTransfer_nether":
+		if "%region%" is "vns1 {@VNRw}" or "vns2 {@VNRw}":
+			wait 1 tick
+			if "%regions at player%" contains "vnr" or "vns":
+				stop
+			if {vnrcheck.%player%} = 1:
+				if {vnrcart.%player%} < -1:
+					log "%player% stole minecarts. (%{vnrcart.%player%}%)" to "vnr.log"
+					send "{@VNRprefix} &aHey, you took extra minecarts! Put them back!"
+				else if {vnrcart.%player%} < 0:
+					log "%player% stole a minecart. (%{vnrcart.%player%}%)" to "vnr.log"
+					send "{@VNRprefix} &aHey, you took an extra minecart! Put it back!"
+				else if {vnrcart.%player%} > 1:
+					send "{@VNRprefix} &aThank you for using the &5&lVNR&a. &aWe are grateful for your spare %{vnrcart.%player%}% minecarts. Have a nice day!"
+					log "%player% gave extra minecarts. (+%{vnrcart.%player%}%)" to "vnr.log"
+				else if {vnrcart.%player%} > 0:
+					send "{@VNRprefix} &aThank you for using the &5&lVNR&a. &aWe are grateful for your spare minecart. Have a nice day!"
+					log "%player% gave an extra minecart. (+%{vnrcart.%player%}%)" to "vnr.log"
+				else:
+					send "{@VNRprefix} &aThank you for using the &5&lVNR&a. Have a nice day!"
+				delete {vnrcart.%player%}
+				delete {vnrcheck.%player%}
+on store:
+	if world is "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if event-item is tnt or tnt minecart:
+			if player doesn't have permission "arim.buildunclaimed":
+				cancel event
+				send "&6Arim>> &cYou can't use tnt."
+		else if "%regions at event-location%" is "vns1 {@VNRw}" or "vns2 {@VNRw}":
+			if event-item is minecart:
+				if regions at player = regions at event-location:
+					increase {vnrcart.%player%} by 1
+				else:
+					cancel event
+					send "{@VNRprefix} &aYou must be in the station to use the minecart storage."
+			else:
+				cancel event
+				send "{@VNRprefix} &aThis chest is for minecarts only!"
+on unstore:
+	if world is "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if event-item is tnt or tnt minecart:
+			if player doesn't have permission "arim.buildunclaimed":
+				cancel event
+				send "&6Arim>> &cYou can't use tnt."
+		else if "%regions at event-location%" is "vns1 {@VNRw}" or "vns2 {@VNRw}":
+			if event-item is minecart:
+				if regions at player = regions at event-location:
+					increase {vnrcart.%player%} by -1
+				else:
+					cancel event
+					send "{@VNRprefix} &aYou must be in the station to use the minecart storage."

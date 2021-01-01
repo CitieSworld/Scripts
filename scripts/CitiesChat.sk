@@ -1,0 +1,14 @@
+options:
+	Format: %{_displayworld}% &r[player] &7[message]
+	Overworld: &8[&bOverworld&8]
+	Nether: &8[&bNether&8]
+	End: &8[&bEnd&8]
+
+on chat:
+	if player is in "CitiesTransfer":
+		set {_displayworld} to "{@Overworld}"
+	else if player is in "CitiesTransfer_nether":
+		set {_displayworld} to "{@Nether}"
+	else if player is in "CitiesTransfer_the_end":
+		set {_displayworld} to "{@End}"
+	set chat format to "{@Format}"

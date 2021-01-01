@@ -1,0 +1,1462 @@
+options:
+	CityHomeFileArg: plugins/Skript/PlayerData/%UUID of arg 1%/CityHome.yml
+	Perm: &cSorry, you can't use this.
+	File: plugins/Skript/CitieSworld/buildcity.yml
+#Messages
+	MustBeExpanded: &6Arim>> &cYour region must be expanded from bedrock to the block limit. &eUse //expand vert&c.
+	AutoExpanded: &6Arim>> &aRegion automatically expanded from Y:0-255, since your claim MUST be expanded.
+	MustSetBox: &6Arim>> &cYour selection must be 3-dimensional.
+#Maximum X and Y values
+	MaxX: 10000
+	MaxZ: 10000
+#Minimum X and Y values
+	MinX: 1000
+	MinZ: 1000
+#The world that this script will set the randomly generated location in.
+#It does not mean that players must randomly teleport from this world.
+#It means that players will be randomly teleported to a location in this world.
+	World: CitiesTransfer
+#Blacklisted biomes.
+#Format: <biome> or <biome> or <biome>, etc.
+	BlacklistedBiomes: nether or sky or ocean or deep ocean or frozen ocean
+#Usage message for /rtp <player>
+	UsageCmd: &cUsage: /citiesworld rtp <player>
+#Successful messages
+#After being teleported
+	TeleportMsg: &6Arim>> &aYou were teleported to a random location in &5Citie Sworld&r&a.
+#After teleporting another player
+	TeleportingOther: &6Arim>> &5%arg 1%&a will be teleported to a random location.
+#Permissions
+#Permission to teleport self with a command
+	TpPermSelf: arim.citiesworld
+#Permission to teleport others with a command
+	TpPermOther: arim.owner
+#Permission to bypass teleport warmup, to teleport instantly
+	TpInstant: arim.tpinstant
+#Permission messages
+	TpSelfMsg: &6Arim>> &aYou may not teleport yourself.
+	TpOtherMsg:&6Arim>> &aYou may not randomly teleport others.
+#Warmup
+	WarmupTime: 5
+#Warmup title
+	Title: &aTeleporting in &5%{_timeleft}%&a...
+	SubTitle: &cDo not move while you are teleported.
+#Customize the aspects of the title. Text in [] is optional, text in <> is mandatory.
+#Format: for <number> second
+	TitleCustomization: for 1 second
+#Warmup success
+	SuccessTitle: &5Teleported
+	SuccessSub: &aYou were teleported to %{_textloc}%&a.
+	SuccessTitleCustom: for 3 second
+#Warmup failure:
+	WarmupFail: &6Arim>> &cYou moved during teleport.
+#Warmup failure title
+	TitleFail: &cTeleport Cancelled.
+	SubTitleFail: &aSorry, but you moved during teleportation.
+	TitleFailCustomization: for 3 second
+	UsageReplace: &6Arim>> &cUsage: /citiesreplace &e<x1> <y1> <z1> <x2> <y2> <z2> <old-block> <new-block>&c.
+	UsageCarpet: &6Arim>> &cUsage: /citiescarpet &e<x-max> <y-max> <z-max> <x-min> <y-min> <z-min> <block-below-carpet> <carpet-block>&c.
+	Disabled: &cThis command is disabled.
+	LayerClaimUsage: &6Arim>> &cUsage: /layerclaim &e<x1> <y1> <z1> <x2> <y2> <z2> <region-name>&c.
+#Perms for /votetime and /votediff
+#set to arim.buildcity for everyone in Citie Sworld to use
+#set to arim.buildunclaimed for Court Members only
+	TimeVotePerm: arim.buildunclaimed
+	DiffVotePerm: arim.buildcity
+#invalid perm message sent to commoners/immigrants
+#currently an unused configuration value
+	OnlyCourtMembers: &6Arim>> &cOnly Court Members (&5oligarchy&c) may use this command.
+
+function fixObsidian(loc: location):
+	loop blocks in radius 1 around {_loc}:
+		if loop-block is nether portal:
+			set loop-block to air
+			loop blocks in radius 1 around loop-block:
+				if loop-block-2 is nether portal:
+					set loop-block-2 to air
+					loop blocks in radius 1 around loop-block-2:
+						if loop-block-3 is nether portal:	
+							set loop-block-3 to air
+							loop blocks in radius 1 around loop-block-3:
+								if loop-block-4 is nether portal:	
+									set loop-block-4 to air
+									loop blocks in radius 1 around loop-block-4:
+										if loop-block-5 is nether portal:	
+											set loop-block-5 to air
+
+on break of obsidian:
+	fixObsidian(location of event-block)
+
+function rgLocs(xmax: number, zmax: number, xmin: number, zmin: number, world: text) :: locations:
+	set {_looping} to true
+	set {_loopX} to {_xmin}
+	set {_loopZ} to {_zmin}
+	while {_looping} is true:
+		add location({_loopX}, 250, {_loopZ}, "%{_world}%" parsed as world) to {_locs::*}
+		add 1 to {_loopX}
+		if {_loopX} is greater than {_xmax}:
+			set {_loopX} to {_xmin}
+			add 1 to {_loopZ}
+			if {_loopZ} is greater than {_zmax}:
+				set {_looping} to false
+	return {_locs::*}
+
+function rgLocsY(xmax: number, ymax: number, zmax: number, xmin: number, ymin: number, zmin: number, world: text, totalmax: number = 256) :: locations:
+	set {_looping} to true
+	set {_loopX} to {_xmin}
+	set {_loopZ} to {_zmin}
+	set {_loopY} to {_ymin}
+	set {_maxblock} to 1
+	while {_looping} is true:
+		add location({_loopX}, {_loopY}, {_loopZ}, "%{_world}%" parsed as world) to {_locs::*}
+		add 1 to {_loopX}
+		if {_loopX} is greater than {_xmax}:
+			set {_loopX} to {_xmin}
+			add 1 to {_loopZ}
+			if {_loopZ} is greater than {_zmax}:
+				set {_loopZ} to {_zmin}
+				add 1 to {_loopY}
+				if {_loopY} is greater than {_ymax}:
+					set {_looping} to false
+		increase {_maxblock} by 1
+		if {_maxblock} > {_totalmax}:
+			set {_looping} to false
+	return {_locs::*}
+
+function squareDistMin(xpos: number, zpos: number, xcenter: number, zcenter: number, xmin: number, zmin: number) :: boolean:
+	set {_x} to {_xpos} - {_xcenter}
+	set {_z} to {_zpos} - {_zcenter}
+	if {_x} < 0:
+		set {_x} to (-1*{_x})
+	if {_z} < 0:
+		set {_z} to (-1*{_z})
+	if {_x} > {_xmin}:
+		return false
+	if {_z} > {_zmin}:
+		return false
+	return true
+
+Command /findtype:
+	Executable by: players
+	Trigger:
+		send "&6Arim>> &aKind of block: &e%player's targeted block%"
+
+Command /oldcitiesreplace [<text>] [<text>] [<text>] [<text>] [<text>] [<text>] [<item type>] [<item type>]:
+	Permission: arim.buildunclaimed
+	Permission message: {@Perm}
+	Executable by: players
+	Trigger:
+		if "%arg 1%" parsed as number is set:
+			if "%arg 2%" parsed as number is set:
+				if "%arg 3%" parsed as number is set:
+					if "%arg 4%" parsed as number is set:
+						if "%arg 5%" parsed as number is set:
+							if "%arg 6%" parsed as number is set:
+								if arg 7 is set:
+									if arg 8 is set:
+										set {_x1} to arg 1
+										set {_y1} to arg 2
+										set {_z1} to arg 3
+										set {_x2} to arg 4
+										set {_y2} to arg 5
+										set {_z2} to arg 6
+										if {_x1} > {_x2}:
+											set {_xmin} to {_x2}
+											set {_xmax} to {_x1}
+										else:
+											set {_xmin} to {_x1}
+											set {_xmax} to {_x2}
+										if {_x1} > {_x2}:
+											set {_xmin} to {_x2}
+											set {_xmax} to {_x1}
+										else:
+											set {_xmin} to {_x1}
+											set {_xmax} to {_x2}
+										if {_y1} > {_y2}:
+											set {_ymin} to {_y2}
+											set {_ymax} to {_y1}
+										else:
+											set {_ymin} to {_y1}
+											set {_ymax} to {_y2}
+										set {_vol} to ({_xmax} - {_xmin} + 1)*({_ymax} - {_ymin} + 1)*({_zmax} - {_zmin} + 1)
+										if {_vol} > 2048:
+											send "&6Arim>> &cVolume limit of &51024&c blocks reached. &7Use a smaller size!"
+											stop
+										set {_looping} to true
+										set {_loopX} to {_minX}
+										set {_loopY} to {_minY}
+										set {_loopZ} to {_minZ}
+										while {_looping} is true:
+											add location({_loopX}, {_loopY}, {_loopZ}, player's world) to {_loc::*}
+											increase {_loopX} by 1
+											if {_loopX} is greater than {_maxX}:
+												set {_loopX} to {_minX}
+												increase {_loopY} by 1
+												if {_loopY} is greater than {_maxY}:
+													set {_loopY} to {_minY}
+													increase {_loopZ} by 1
+													if {_loopZ} is greater than {_maxZ}:
+														set {_looping} to false
+											wait 1 tick
+										loop {_loc::*}:
+											if block at loop-value is arg 7:
+												if player's inventory contains arg 8:
+													remove arg 8 from player's inventory
+													add arg 7 to player's inventory
+													set block at loop-value to arg 8
+												else:
+													send "&6Arim>> &cYou ran out of &e%arg 8%&c."
+													stop
+											wait 1 tick
+										send "&6Arim>> &aCompleted!"
+										stop
+		send "{@UsageReplace}"
+
+on explode:
+	if event-entity is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if event-entity is a primed tnt:
+			loop all players in radius 20 around event-location:
+				set loop-player's action bar to "&4&lT&r&f&lN&r&4&lT &r&l&cExploding"
+		else if event-entity is a creeper:
+			loop all players in radius 20 around event-location:
+				set loop-player's action bar to "&2&lCreeper &r&l&cExploding"
+
+on death of a player:
+	set {inv::%name of player%::xp::lvl} to level of player
+	set {inv::%name of player%::xp::prog} to level progress of player
+
+on respawn:
+	wait 1 tick
+	set level of player to {inv::%name of player%::xp::lvl}
+	set level progress of player to {inv::%name of player%::xp::prog}
+
+Command /kill:
+	Executable by: players
+	Trigger:
+		send "&6Arim>> &cPlease use &e/home&c instead."
+		stop
+
+on rightclick holding lava bucket:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of player's targeted block
+		if regions at {_loc} is not set:
+			cancel event
+			send "&6Arim>> &cYou can't dump lava on unclaimed land."
+	else if player is in "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't dump lava in the nether or end."
+on rightclick holding flint and steel:
+	if player is in "CitiesTransfer":
+		if player's targeted entity is creeper:
+			if player doesn't have permission "arim.buildunclaimed":
+				cancel event
+			else:
+				set {_loc} to location of player's targeted entity
+				if regions at {_loc} is not set:
+					cancel event
+					send "&6Arim>> &cYou can't use flint and steel on unclaimed land."
+		else:
+			set {_loc} to location of player's targeted block
+			if regions at {_loc} is not set:
+				cancel event
+				send "&6Arim>> &cYou can't use flint and steel on unclaimed land."
+	else if player is in "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't use flint and steel in the nether or end."
+on rightclick:
+	if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player's targeted block is not crafting table:
+			if player doesn't have permission "arim.buildunclaimed":
+				set {_loc} to location of player's targeted block
+				if regions at {_loc} is not set:
+					cancel event
+on rightclick holding tnt minecart:
+	if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't use tnt."
+on rightclick holding tnt:
+	if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't use tnt."
+on pickup:
+	if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if event-item is tnt or tnt minecart:
+			if player doesn't have permission "arim.buildunclaimed":
+				cancel event
+				send "&6Arim>> &cYou can't use tnt."
+on craft of tnt:
+	if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't use tnt."
+on craft of tnt minecart:
+	if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't use tnt."
+on damage:
+	if victim is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if attacker is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+			if attacker is a player:
+				if attacker has permission "arim.buildunclaimed":
+					if victim is a player:
+						if regions at victim is not set:
+							cancel event
+				else:
+					if regions at victim is not set:
+						if victim is mooshroom or cow or sheep or chicken or rabbit or pig or villager or horse or snow golem or iron golem or wolf or ocelot or cat or dog or donkey or mule or player:
+							cancel event
+					else:
+						if victim is a player:
+							cancel event
+
+on hopper pickup:
+	if world is "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if event-item is tnt or tnt minecart:
+			cancel event
+
+#Command /queryflag [<text>] [<text>] [<text>]:
+#	Permission: arim.buildunclaimed
+#	Permission message: {@Perm}
+#	Trigger:
+#		if arg 1 is set:
+#			if arg 2 is set:
+#				if arg 3 is set:
+#					set {_w} to "%arg 3%"
+#				else:
+#					set {_w} to "%world of player%"
+#				loop regions in "%{_w}%" parsed as world:
+#					if "%loop-value%" is "%arg 1%":
+#						set {_val} to value of flag "%arg 2%" in region "%arg 1%" in world "%{_w}%" parsed as world
+#						send "&6Arim>> &aValue of flag &e%arg 2%&a in region &e%arg 1%&a is &b%{_val}%&a."
+#						stop
+#				send "&6Arim>> &cRegion &e%arg 1%&c not found in world &e%{_w}%&c."
+#			else:
+#				send "&6Arim>> &cUsage: /queryflag &e<region> <flag> [world]&c."
+#		else:
+#			send "&6Arim>> &cUsage: /queryflag &e<region> <flag> [world]&c."
+
+on shoot:
+	if shooter is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if shooter is player:
+			set {rm::citiewcheck::%event-projectile%::shooter} to "%name of shooter%"
+		else if shooter is dispenser:
+			set {rm::citiewcheck::%event-projectile%::shooter} to "dontblockthisdispenser"
+			set {rm::citiewcheck::%event-projectile%::loc} to location of shooter
+on projectile hit:
+	if world of event-location is "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if event-projectile is egg:
+			if {rm::citiewcheck::%event-projectile%::shooter} is set:
+				if "%{rm::citiewprojectile::%event-projectile%::shooter}%" is "dontblockthisdispenser":
+					if "%regions at event-location%" != "%regions at {rm::citiewprojectile::%event-projectile%::loc}%":
+						kill event-projectile
+				else:
+					loop regions at event-location:
+						set {_isOwner} to false
+						set {_isMember} to false
+						loop owners of loop-value:
+							if "%loop-value-2%" is "%{rm::citiewcheck::%event-projectile%::shooter}%":
+								set {_isOwner} to true
+						loop members of loop-value:
+							if "%loop-value-2%" is "%{rm::citiewcheck::%event-projectile%::shooter}%":
+								set {_isMember} to true
+						if {_isOwner} != true:
+							if {_isMember} != true:
+								kill event-projectile
+								send "&6Arim>> &cYour projectile was blocked." to "%{rm::citiewcheck::%event-projectile%::shooter}%" parsed as player
+								stop
+#						set {_flag} to "damage-animals" parsed as wgflag
+#						if flag {_flag} of loop-value != "ALLOW" or "-g MEMBERS: ALLOW" or "-g NON_MEMBERS: DENY":
+#							kill event-projectile
+#							stop
+
+
+
+Command /blockfire:
+	Aliases: /antifire, /removefire
+	Permission: arim.buildunclaimed
+	Permission message: {@Perm}
+	Executable by: players
+	Trigger:
+		if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+			execute console command "/mv gamerule doFireTick false %world of player%"
+			log "%player% ran anti-fire-spread command, while in region %region at player%, at %x-coordinate of player%, %y-coordinate of player%, %z-coordinate of player%, in %world of player%." to "cityemergency.log"
+			send "&6Arim>> &aFire should stop now."
+		else:
+			send "{@Perm}"
+Command /removetnt:
+	Aliases: /blocktnt, /antitnt
+	Permission: arim.buildunclaimed
+	Permission message: {@Perm}
+	Executable by: players
+	Trigger:
+		if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+			kill all tnt in world of player
+			log "%player% ran anti-tnt command, while in region %region at player%, at %x-coordinate of player%, %y-coordinate of player%, %z-coordinate of player%, in %world of player%." to "cityemergency.log"
+			send "&6Arim>> &aTnT should stop now."
+		else:
+			send "{@Perm}"
+
+Command /nametag [<text>]:
+	Aliases: /givetag, /gimmetag
+	Executable by: players
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Usage: /nametag [amount]
+	Trigger:
+		if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+			if arg 1 is set:
+				set {_num} to "%arg 1%" parsed as number
+			else:
+				set {_num} to 1
+			if {_num} > 0:
+				add {_num} of name tag to player's inventory
+				send "&6Arim>> &aYou got &e%{_num}%&a nametag(s)."
+			else:
+				send "&6Arim>> &cUsage: /nametag &e[amount]&c. Get name tags."
+		else:
+			send "{@Perm}" 
+
+on block break:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of event-block
+		if regions at {_loc} is not set:
+			if player doesn't have permission "arim.buildunclaimed":
+				if y-coordinate of {_loc} > 20:
+					if event-block is crafting table:
+						if {citiew::%name of player%::tables} < 3:
+							increase {citiew::%name of player%::tables} by 1
+					else:
+						cancel event
+						send "&6Arim>> &cAbove &eY:20&c, you may only break/place crafting tables. &eUse /claim to gain a plot of land."
+	else if player is in "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't break blocks in the nether or end, sorry."
+on bucket fill:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of targeted block
+		if regions at {_loc} is not set:
+			if y-coordinate of {_loc} > 20:
+				if player doesn't have permission "arim.buildunclaimed":
+					cancel event
+					send "&6Arim>> &cAbove &eY:20&c, you may only break/place crafting tables. &eUse /claim to gain a plot of land."
+	else if player is in "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't break blocks in the nether or end, sorry."
+on bucket empty:
+	if player is in "CitiesTransfer":
+		set {_loc} to location of targeted block
+		if regions at {_loc} is not set:
+			if y-coordinate of {_loc} > 20:
+				if player doesn't have permission "arim.buildunclaimed":
+					cancel event
+					send "&6Arim>> &cAbove &eY:20&c, you may only break/place crafting tables. &eUse /claim to gain a plot of land."
+	else if player is in "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if player doesn't have permission "arim.buildunclaimed":
+			cancel event
+			send "&6Arim>> &cYou can't break blocks in the nether or end, sorry."
+on block place:
+	if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		set {_loc} to location of event-block
+		if regions at {_loc} is set:
+			if event-block is tnt:
+				if player doesn't have permission "arim.buildunclaimed":
+					cancel event
+					send "&6Arim>> &cYou can't use tnt."
+					stop
+				if the event was not cancelled:
+					set {_x} to x-coordinate of {_loc}
+					set {_y} to y-coordinate of {_loc}
+					set {_z} to z-coordinate of {_loc}
+					log "%player% placed tnt at %{_x}%, %{_y}%, %{_z}% in %world of player%." to "citiestnt.log"
+		else if regions at {_loc} is not set:
+			if event-block is tnt:
+				cancel event
+				send "&6Arim>> &cYou can't use tnt on unclaimed land."
+				stop
+			if player doesn't have permission "arim.buildunclaimed":
+				if y-coordinate of {_loc} > 20:
+					if event-block is crafting table:
+						if {citiew::%name of player%::tables} > 0:
+							increase {citiew::%name of player%::tables} by -1
+						else:
+							cancel event
+							send "&6Arim>> &cYou have reached your maximum allotted placed crafting tables. &eBreak an existing crafting table first."
+					else:
+						cancel event
+						send "&6Arim>> &cAbove &eY:20&c, you may only break/place crafting tables. &eUse /claim to gain a plot of land."
+
+Command /layerclaim [<text>] [<text>] [<text>] [<text>] [<text>] [<text>] [<text>]:
+	Executable by: players
+	Permission: arim.buildunclaimed
+	Permission message: {@Perm}
+	Trigger:
+		if player is in "CitiesTransfer":
+			if arg 1 parsed as number is set:
+				if arg 2 parsed as number is set:
+					if arg 3 parsed as number is set:
+						if arg 4 parsed as number is set:
+							if arg 5 parsed as number is set:
+								if arg 6 parsed as number is set:
+									if arg 7 is set:
+										loop regions in world of player:
+											if "%loop-value%" is "%arg 7%":
+												send "&6Arim>> &cPick a different region name. &e%arg 7%&c is taken already."
+												stop
+										set {_x1} to arg 1 parsed as number
+										set {_y1} to arg 2 parsed as number
+										set {_z1} to arg 3 parsed as number
+										set {_x2} to arg 4 parsed as number
+										set {_y2} to arg 5 parsed as number
+										set {_z2} to arg 6 parsed as number
+										set {_xdiff} to ({_x1} - {_x2})
+										set {_ydiff} to ({_y1} - {_y2})
+										set {_zdiff} to ({_z1} - {_z2})
+										if {_xdiff} > 0:
+											set {_xmin} to {_x2}
+											set {_xmax} to {_x1}
+										else:
+											set {_xmin} to {_x1}
+											set {_xmax} to {_x2}
+										if {_zdiff} > 0:
+											set {_zmin} to {_z2}
+											set {_zmax} to {_z1}
+										else:
+											set {_zmin} to {_z1}
+											set {_zmax} to {_z2}
+										set {_locs::*} to rgLocs({_xmax}, {_zmax}, {_xmin}, {_zmin}, "CitiesTransfer")
+										loop {_locs::*}:
+											if regions at loop-value is set:
+												loop regions at loop-value:
+													set {_isOwner} to false
+													loop owners of loop-value-2:
+														if "%loop-value-3%" is "%player%":
+															set {_isOwner} to true
+													if {_isOwner} != true:
+														send "&6Arim>> &cERROR: &eYour layer claim must be within an existing claim of yours!"
+														stop
+											else:
+												send "&6Arim>> &cERROR: &eYour layer claim must be within an existing claim of yours!"
+												stop
+										set {_loc1} to location({_x1}, {_y1}, {_z1}, world of player)
+										set {_loc2} to location({_x2}, {_y2}, {_z2}, world of player)
+										worldguard create region "%arg 7%" between {_loc1} and {_loc2} in world of player
+										wait 2 tick
+										set {_exist} to false
+										loop regions at {_loc1}:
+											if "%loop-value%" = "%arg 7% in world CitiesTransfer":
+												set {_exist} to true
+										if {_exist} = true:
+											execute console command "/rg addowner %arg 7% %player% -w CitiesTransfer"
+											send "&6Arim>> &aCreated region &e%arg 7%&a."
+										else:
+											send "&6Arim>> &cERROR: &eRegion failed to create. &cDoes it already exist?"
+									else:
+										send "{@LayerClaimUsage}"
+								else:
+									send "{@LayerClaimUsage}"
+							else:
+								send "{@LayerClaimUsage}"
+						else:
+							send "{@LayerClaimUsage}"
+					else:
+						send "{@LayerClaimUsage}"
+				else:
+					send "{@LayerClaimUsage}"
+			else:
+				send "{@LayerClaimUsage}"
+		else:
+			send "&6Arim>> &cWrong world."
+
+Command /mwsclaim <player>:
+	Executable by: console
+	Trigger:
+		set {_arg} to "%arg 1%"
+		if {citiew::%{_arg}%::hasclaim} = 0:
+			set {citiew::%{_arg}%::hasclaim} to 1
+			make arg 1 execute command "/sadiubsiuabdiausvbasuis %UUID of arg 1%"
+			wait 2 tick
+			execute console command "/rg flag %UUID of arg 1% -w %world of arg 1% block-break -g members allow"
+			execute console command "/rg flag %UUID of arg 1% -w %world of arg 1% block-place -g members allow"
+			execute console command "/rg flag %UUID of arg 1% -w %world of arg 1% damage-animals -g members allow"
+			execute console command "/rg flag %UUID of arg 1% -w %world of arg 1% lava-flow deny"
+			execute console command "/rg flag %UUID of arg 1% -w %world of arg 1% tnt deny"
+			execute console command "/rg flag %UUID of arg 1% -w %world of arg 1% lighter deny"
+			execute console command "/rg flag %UUID of arg 1% -w %world of arg 1% fire-spread deny"
+		else:
+			send "&6Arim>> &cYou already have a claim. &eUse /removeclaim to delete it." to arg 1
+
+Command /batchflag [<text>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Trigger:
+		if "%arg 1%" contains ",":
+			if arg 2 is set:
+				set {_regions::*} to arg 1 split at ","
+				loop {_regions::*}:
+					make console execute command "/rg flag %loop-value% %arg 2%"
+			else:
+				send "&6Arim>> &cUsage: /batchflag &e<region1,region2,region3,etc.> <flag>&c."
+		else:
+			send "&6Arim>> &cUsage: /batchflag &e<region1,region2,region3,etc.> <flag>&c."
+
+Command /selectcityclaim [<number>] [<number>] [<number>] [<number>] [<number>] [<number>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Trigger:
+		if player is not in "CitiesTransfer":
+			send "{@Perm}"
+			stop
+		if arg 1 is set:
+			if arg 2 is set:
+				if arg 3 is set:
+					if arg 4 is set:
+						if arg 5 is set:
+							if arg 6 is set:
+								if arg 1 = arg 4:
+									send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners. &cYour claim can't be 1-block wide."
+								else if arg 1 > arg 4:
+									set {_xmax} to arg 1
+									set {_xmin} to arg 4
+								else:
+									set {_xmax} to arg 4
+									set {_xmin} to arg 1
+								if arg 2 = arg 5:
+									send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners. &cYour claim can't be 1-block tall."
+								else if arg 2 > arg 5:
+									set {_ymax} to arg 2
+									set {_ymin} to arg 5
+								else:
+									set {_ymax} to arg 5
+									set {_ymin} to arg 2
+								if arg 3 = arg 6:
+									send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners. &cYour claim can't be 1-block wide."
+								else if arg 3 > arg 6:
+									set {_zmax} to arg 3
+									set {_zmin} to arg 6
+								else:
+									set {_zmax} to arg 6
+									set {_zmin} to arg 3
+								if squareDistMin({_xmin}, {_zmin}, 217, 262, 800, 800) is false:
+									json("%player%", "&6Arim>> ||&a&lClick me to travel farther away from the center of the world to claim land.||ttp:&dClick here||sgt:/citiesworld rtp|| &r&7(You can't claim land that is too close to the center of the world)")
+									stop
+								if squareDistMin({_xmax}, {_zmax}, 217, 262, 800, 800) is false:
+									json("%player%", "&6Arim>> ||&a&lClick me to travel farther away from the center of the world to claim land.||ttp:&dClick here||sgt:/citiesworld rtp|| &r&7(You can't claim land that is too close to the center of the world)")
+									stop
+								set {_rglocs::*} to rgLocs({_xmax}, {_zmax}, {_xmin}, {_zmin}, "CitiesTransfer")
+								loop {_rglocs::*}:
+									if biome at loop-value is ocean or deep ocean or frozen ocean:
+										send "&6Arim>> &cYou can't claim in this biome."
+										stop
+									if squareDistMin(x-coordinate of loop-value, z-coordinate of loop-value, -647, -760, 100, 100) is false:
+										json("%player%", "&6Arim>> ||&a&lClick me to travel farther away from the nearby stronghold to claim land.||ttp:&dClick here||sgt:/citiesworld rtp|| &r&7(You can't claim strongholds)")
+										stop
+									if squareDistMin(x-coordinate of loop-value, z-coordinate of loop-value, 1080, -167, 100, 100) is false:
+										json("%player%", "&6Arim>> ||&a&lClick me to travel farther away from the nearby stronghold to claim land.||ttp:&dClick here||sgt:/citiesworld rtp|| &r&7(You can't claim strongholds)")
+										stop
+									if squareDistMin(x-coordinate of loop-value, z-coordinate of loop-value, -215, 960, 100, 100) is false:
+										json("%player%", "&6Arim>> ||&a&lClick me to travel farther away from the nearby stronghold to claim land.||ttp:&dClick here||sgt:/citiesworld rtp|| &r&7(You can't claim strongholds)")
+										stop
+								make player execute command "//pos1 %arg 1%,%arg 2%,%arg 3%"
+								make player execute command "//pos2 %arg 4%,%arg 5%,%arg 6%"
+							else:
+								send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners."
+						else:
+							send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners."
+					else:
+						send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners."
+				else:
+					send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners."
+			else:
+				send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners."
+		else:
+			send "&6Arim>> &cUsage: &e/selectcityclaim <x1> <y1> <z1> <x2> <y2> <z2>&c. &7Find your two corners of the land you would like to claim, and get the coordinates of those corners."
+
+on gamemode change to creative:
+	if player is in "CitiesTransfer":
+		log "WARNING: %player% (%UUID of player%) changed gamemode to creative!" to "citiescmd.log"
+on gamemode change to spectator:
+	if player is in "CitiesTransfer":
+		log "WARNING: %player% (%UUID of player%) changed gamemode to spectator!" to "citiescmd.log"
+
+on command:
+	if player is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+		if "%command%" = "cityselectclaimjaondsaunzjmakzms":
+			cancel event
+			if player is in "CitiesTransfer":
+				if {citiew::%name of player%::hasclaim} = 1:
+					send "&6Arim>> &aYou already have a claim. &eUse /removeclaim to delete it."
+					stop
+				set {_xdist} to (x-coordinate of player - 217)
+				set {_zdist} to (z-coordinate of player - 262)
+				if {_xdist} < 0:
+					set {_xdist} to -1*{_xdist}
+				if {_zdist} < 0:
+					set {_zdist} to -1*{_zdist}
+				if {_xdist} < 800:
+					json("%player%", "&6Arim>> ||&a&lClick me to travel farther away from the center of the world to claim land.||ttp:&dClick here||sgt:/citiesworld rtp|| &r&7(You can't claim land that is too close to the center of the world)")
+					stop
+				if {_zdist} < 800:
+					json("%player%", "&6Arim>> ||&a&lClick me to travel farther away from the center of the world to claim land.||ttp:&dClick here||sgt:/citiesworld rtp|| &r&7(You can't claim land that is too close to the center of the world)")
+					stop
+				if biome at player is ocean or deep ocean or frozen ocean:
+					send "&6Arim>> &cYou can't claim in this biome."
+					stop
+				if volume of we selection of player < 1:
+					send "{@MustSetBox}"
+					stop
+				if height of we selection of player < 256:
+					if UUID of player != "949ff2499a0140329ecfc1b610fd7990":
+						make player execute command "//expand vert"
+						send "{@AutoExpanded}"
+						wait 1 tick
+				if height of we selection of player < 256:
+					if UUID of player != "949ff2499a0140329ecfc1b610fd7990":
+						send "{@MustBeExpanded}"
+						stop
+				if volume of we selection of player > 262144:
+					if player doesn't have permission "arim.buildunclaimed":
+						send "&6Arim>> &aYou have exceeded the max volume for claims!"	
+						stop
+				execute console command "/mwsclaim %player%"
+			else:
+				send "&6Arim>> &cReturn to the overworld to use this."
+			stop
+		else if "%command%" = "cityclaim":
+			cancel event
+			if player is in "CitiesTransfer":
+				if {citiew::%name of player%::hasclaim} = 1:
+					send "&6Arim>> &aYou already have a claim. &eUse /removeclaim to delete it."
+					stop
+				set {_x1} to x-coordinate of player + 15
+				set {_z1} to z-coordinate of player + 15
+				set {_x2} to x-coordinate of player - 16
+				set {_z2} to z-coordinate of player - 16
+				make player execute command "//pos1 %{_x1}%,0,%{_z1}%"
+				make player execute command "//pos2 %{_x2}%,255,%{_z2}%"
+				wait 5 ticks
+				make player execute command "/cityselectclaimjaondsaunzjmakzms"
+			else:
+				send "&6Arim>> &cReturn to the overworld to use this."
+			stop
+		else if "%command%" = "cityunclaim" or "removeclaim":
+			if {citiew::%name of player%::hasclaim} = 1:
+				set {citiew::%name of player%::hasclaim} to 0
+				execute console command "/rg delete %UUID of player% -w CitiesTransfer"
+				send "&6Arim>> &aYour claim has been removed."
+			else:
+				send "&6Arim>> &cYou don't have a claim."
+			stop
+		else if "%command%" = "region" or "rg":
+			if "%arguments%" contains "claim":
+				cancel event
+#				make player execute command "/cityselectclaimjaondsaunzjmakzms"
+				make player execute command "/cityclaim"
+			else if "%arguments%" contains "define":
+				if player doesn't have permission "arim.defineregion":
+					cancel event
+					send "{@Perm}"
+			stop
+		else if "%command%" != "ram" or "tpa" or "tp" or "tpaccept" or "fly" or "tphere" or "tpahere" or "tpcoord" or "myversion" or "suspects" or "bulletin" or "chat" or "skript" or "skreload" or "arimrestart" or "arest" or "anotify" or "mws" or "hub" or "spawn" or "lobby" or "mv" or "rg" or "region" or "/expand" or "ijsoanzmabhbusdshj" or "asiojsoiamkzkhsazkj" or "votediff" or "votetime":
+			if arguments is set:
+				log "%player% in %world of player%: /%command% %arguments%" to "citiescmd.log"
+			else:
+				log "%player% in %world of player%: /%command%" to "citiescmd.log"
+		stop
+
+on damage of a player:
+	if attacker is a player:
+		if victim is in "CitiesTransfer" or "CitiesTransfer_nether" or "CitiesTransfer_the_end":
+			if the event was not cancelled:
+				set {_x1} to x-coordinate of attacker
+				set {_y1} to y-coordinate of attacker
+				set {_z1} to z-coordinate of attacker
+				set {_w1} to "%world of attacker%"
+				set {_x2} to x-coordinate of victim
+				set {_y2} to y-coordinate of victim
+				set {_z2} to z-coordinate of victim
+				set {_w2} to "%world of victim%"
+				set {_helm} to helmet of victim
+				set {_chest} to chestplate of victim
+				set {_leggings} to leggings of victim
+				set {_boots} to boots of victim
+				log "%attacker% (Loc: %{_x1}% %{_y1}% %{_z1}%) hit/damaged %victim% (Loc: %{_x2}% %{_y2}% %{_z2}%). Defender armor: %{_helm}% %{_chest}% %{_leggings}% %{_boots}%" to "citieshits.log"
+				if "%{_w1}%" != "%{_w2}%":
+					log "The previous attack was WEIRD! The players were in different worlds: %{_w1}% and %{_w2}%." to "citieshits.log"
+
+function playersWithPerm(perm: text) :: players:
+	set {_exist} to false
+	loop all players in "CitiesTransfer" parsed as world:
+		if loop-player has permission "%{_perm}%":
+			add loop-player to {_players::*}
+			set {_exist} to true
+	loop all players in "CitiesTransfer_nether" parsed as world:
+		if loop-player has permission "%{_perm}%":
+			add loop-player to {_players::*}
+			set {_exist} to true
+	loop all players in "CitiesTransfer_the_end" parsed as world:
+		if loop-player has permission "%{_perm}%":
+			add loop-player to {_players::*}
+			set {_exist} to true
+	if {_exist} != true:
+		set {_players::1} to "..."
+	return {_players::*}
+
+Command /bedrockbreak:
+	Aliases: /breakbedrock
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Executable by: players
+	Trigger:	
+		if player is in "CitiesTransfer_nether":
+			if amount of netherrack in player's inventory > 59:
+				if amount of redstone repeater items in player's inventory > 9:
+					if amount of obsidian in player's inventory > 15:
+						set {_rb} to amount of redstone block in player's inventory
+						set {_r} to amount of redstone in player's inventory
+						increase {_r} by (9*{_rb})
+						if {_r} > 33:
+							if amount of sticky piston in player's inventory > 1:
+								if amount of piston in player's inventory > 1:
+									if amount of lever in player's inventory > 0:
+										if amount of activator minecart rail in player's inventory > 0:
+											if player's tool is diamond pickaxe:
+												if y-coordinate of player > 126:
+													if block below player is bedrock:
+														if amount of tnt minecart in player's inventory > 1:
+															remove 2 tnt minecart from player's inventory
+															remove 1 piston from player's inventory
+															set block below player to air
+															send "&6Arim>> &aBedrock broken! Congratulations."
+														else:
+															send "&6Arim>> &cYou need 2 tnt minecarts."
+													else:
+														send "&6Arim>> &cStand on top of a bedrock block to do this."
+												else:
+													send "&6Arim>> &cYou need to be on top of the nether roof to use this command."
+											else:
+												send "&6Arim>> &cYou need to hold your diamond pickaxe."
+										else:
+											send "&6Arim>> &cYou need 1 activator rail."
+									else:
+										send "&6Arim>> &cYou need 1 lever."
+								else:
+									send "&6Arim>> &cYou need 2 pistons."
+							else:
+								send "&6Arim>> &cYou need 2 sticky pistons."
+						else:
+							send "&6Arim>> &cYou need 34 redstone."
+					else:
+						send "&6Arim>> &cYou need 16 obsidian."
+				else:
+					send "&6Arim>> &cYou need 10 repeaters."
+			else:
+				send "&6Arim>> &cYou need 60 netherrack."
+		else:
+			send "&6Arim>> &cYou must be in &5Citie Sworld NETHER&c to use this command."
+
+on command "/buildcities":
+	cancel event
+	make player execute command "/buildcity"
+on command "/mws":
+	cancel event
+	make player execute command "/buildcity"
+
+on command "/buildcity":
+	if the event was not cancelled:
+		if player doesn't have permission "arim.cityteleport":
+			send "{@Perm}"
+			stop
+		else if {citiew::%name of player%::rtp} is 0:
+			make player execute command "/citiesworld rtp"
+			stop
+		execute console command "/mv tp %player% CitiesTransfer"
+		delete {rm::teleporting::%player%}
+		json("%player%", "&6Arim>> &aTeleported to ||&5Citie ||ttp:&7Citie Sworld is a place to build cities.||&5Sworld||ttp:&7Citie Sworld is a Survival world (Sworld)||&a.")
+		json("%player%", "&3Important note: &9Please read the world-specific rules|| &c&lhere||ttp:&7Click to go to the rules!||url:goo.gl/9rvG8X")
+
+Command /massmember [<text>] [<text>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /manymembers
+	Trigger:
+		if arg 1 is not set:
+			send "&6Arim>> &cUsage: /massmember &e<region> <players> [world]&c. Separate players by commas."
+		else if arg 2 is not set:
+			send "&6Arim>> &cUsage: /massmember &e<region> <players> [world]&c. Separate players by commas."
+		else if command sender is player:
+			set {_members::*} to arg 2 split by ","
+			loop {_members::*}:
+				if arg 3 is set:
+					make player execute command "/rg addmember %arg 1% %loop-value% -w %arg 3%"
+				else:
+					make player execute command "/rg addmember %arg 1% %loop-value%"
+		else if command sender is console:
+			set {_members::*} to arg 2 split by ","
+			loop {_members::*}:
+				if arg 3 is set:
+					make player execute command "/rg addmember %arg 1% %loop-value% -w %arg 3%"
+				else:
+					send "&6Arim>> &cUsage: /massmember &e<region> <players> [world]&c. World is required from console."
+					stop
+		else:
+			send "&6Arim>> &cUnknown sender."
+
+Command /multiowner [<text>] [<text>] [<offline player>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Trigger:
+		if command sender is console:
+			if arg 4 is not set:
+				send "&6Arim>> &cWorld must be specified if issued from console."
+				stop
+		if command sender is player or console:
+			if arg 1 is set:
+				if "%arg 2%" parsed as number > 0:
+					if arg 3 is set:
+						set {_num} to "%arg 2%" parsed as number
+						set {_rindex} to 0
+						loop {_num} times:
+							increase {_rindex} by 1
+							if arg 4 is set:
+								set {_rg} to "%arg 1%%{_rindex}% -w %arg 4%"
+							else:
+								set {_rg} to "%arg 1%%{_rindex}%"
+							wait 5 tick
+							make player execute command "/rg addowner %{_rg}% %arg 3%"
+					else:
+						send "&6Arim>> &cUsage: /multiowner &e<region domain> <region number> <player> [world]&c."
+				else:
+					send "&6Arim>> &cUsage: /multiowner &e<region domain> <region number> <player> [world]&c."
+			else:
+				send "&6Arim>> &cUsage: /multiowner &e<region domain> <region number> <player> [world]&c."
+		else:
+			send "&6Arim>> &cUnknown sender."
+			stop
+
+Command /rmultiowner [<text>] [<text>] [<offline player>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /removemultiowner
+	Trigger:
+		if command sender is console:
+			if arg 4 is not set:
+				send "&6Arim>> &cWorld must be specified if issued from console."
+				stop
+		if command sender is player or console:
+			if arg 1 is set:
+				if "%arg 2%" parsed as number > 0:
+					if arg 3 is set:
+						set {_num} to "%arg 2%" parsed as number
+						set {_rindex} to 0
+						loop {_num} times:
+							increase {_rindex} by 1
+							if arg 4 is set:
+								set {_rg} to "%arg 1%%{_rindex}% -w %arg 4%"
+							else:
+								set {_rg} to "%arg 1%%{_rindex}%"
+							wait 5 tick
+							make player execute command "/rg removeowner %{_rg}% %arg 3%"
+					else:
+						send "&6Arim>> &cUsage: /removemultiowner &e<region domain> <region number> <player> [world]&c."
+				else:
+					send "&6Arim>> &cUsage: /removemultiowner &e<region domain> <region number> <player> [world]&c."
+			else:
+				send "&6Arim>> &cUsage: /removemultiowner &e<region domain> <region number> <player> [world]&c."
+		else:
+			send "&6Arim>> &cUnknown sender."
+			stop
+
+Command /multimember [<text>] [<text>] [<offline player>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /mm
+	Trigger:
+		if command sender is console:
+			if arg 4 is not set:
+				send "&6Arim>> &cWorld must be specified if issued from console."
+				stop
+		if command sender is player or console:
+			if arg 1 is set:
+				if "%arg 2%" parsed as number > 0:
+					if arg 3 is set:
+						set {_num} to "%arg 2%" parsed as number
+						set {_rindex} to 0
+						loop {_num} times:
+							increase {_rindex} by 1
+							if arg 4 is set:
+								set {_rg} to "%arg 1%%{_rindex}% -w %arg 4%"
+							else:
+								set {_rg} to "%arg 1%%{_rindex}%"
+							wait 5 tick
+							make command sender execute command "/rg addmember %{_rg}% %arg 3%"
+					else:
+						send "&6Arim>> &cUsage: /multimember &e<region domain> <region number> <player> [world]&c."
+				else:
+					send "&6Arim>> &cUsage: /multimember &e<region domain> <region number> <player> [world]&c."
+			else:
+				send "&6Arim>> &cUsage: /multimember &e<region domain> <region number> <player> [world]&c."
+		else:
+			send "&6Arim>> &cUnknown sender."
+			stop
+
+Command /rmultimember [<text>] [<text>] [<offline player>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /rmm, /removemultimember, /removemm
+	Trigger:
+		if command sender is console:
+			if arg 4 is not set:
+				send "&6Arim>> &cWorld must be specified if issued from console."
+				stop
+		if command sender is player or console:
+			if arg 1 is set:
+				if "%arg 2%" parsed as number > 0:
+					if arg 3 is set:
+						set {_num} to "%arg 2%" parsed as number
+						set {_rindex} to 0
+						loop {_num} times:
+							increase {_rindex} by 1
+							if arg 4 is set:
+								set {_rg} to "%arg 1%%{_rindex}% -w %arg 4%"
+							else:
+								set {_rg} to "%arg 1%%{_rindex}%"
+							wait 5 tick
+							make player execute command "/rg removemember %{_rg}% %arg 3%"
+					else:
+						send "&6Arim>> &cUsage: /removemultimember &e<region domain> <region number> <player> [world]&c."
+				else:
+					send "&6Arim>> &cUsage: /removemultimember &e<region domain> <region number> <player> [world]&c."
+			else:
+				send "&6Arim>> &cUsage: /removemultimember &e<region domain> <region number> <player> [world]&c."
+		else:
+			send "&6Arim>> &cUnknown sender."
+			stop
+
+Command /multiflag [<text>] [<text>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /mf, /mflag
+	Trigger:
+		if command sender is player or console:
+			if arg 1 is set:
+				if "%arg 2%" parsed as number > 0:
+					if arg 3 is set:
+						set {_num} to "%arg 2%" parsed as number
+						set {_rindex} to 0
+						loop {_num} times:
+							increase {_rindex} by 1
+							set {_rg} to "%arg 1%%{_rindex}%"
+							make player execute command "/rg flag %{_rg}% %arg 3%"
+							wait 5 tick
+					else:
+						send "&6Arim>> &cUsage: /multiflag &e<region domain> <region_number> <flag>&c."
+				else:
+					send "&6Arim>> &cUsage: /multiflag &e<region domain> <region_number> <flag>&c."
+			else:
+				send "&6Arim>> &cUsage: /multiflag &e<region domain> <region_number> <flag>&c."
+		else:
+			send "&6Arim>> &cUnknown sender."
+			stop
+
+Command /memberall [<text>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /addmemberall, /ama
+	Executable by: players
+	Trigger:
+		if "%arg 1%" contains ",":
+			if arg 2 is set:
+				set {_regions::*} to arg 1 split at ","
+				loop {_regions::*}:
+					make console execute command "/rg addmember %loop-value% %arg 2%"
+			else:
+				send "&6Arim>> &cUsage: /addmemberall &e<region1,region2,region3,etc.> <player>&c."
+		else:
+			send "&6Arim>> &cUsage: /addmemberall &e<region1,region2,region3,etc.> <player>&c."
+
+Command /rmemberall [<text>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /removememberall, /rma
+	Executable by: players
+	Trigger:
+		if "%arg 1%" contains ",":
+			if arg 2 is set:
+				set {_regions::*} to arg 1 split at ","
+				loop {_regions::*}:
+					make console execute command "/rg removemember %loop-value% %arg 2%"
+			else:
+				send "&6Arim>> &cUsage: /removememberall &e<region1,region2,region3,etc.> <player>&c."
+		else:
+			send "&6Arim>> &cUsage: /removememberall &e<region1,region2,region3,etc.> <player>&c."
+
+Command /ownerall [<text>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /addownerall, /aoa, /ownall
+	Executable by: players
+	Trigger:
+		if "%arg 1%" contains ",":
+			if arg 2 is set:
+				set {_regions::*} to arg 1 split at ","
+				loop {_regions::*}:
+					make console execute command "/rg addowner %loop-value% %arg 2%"
+			else:
+				send "&6Arim>> &cUsage: /addownerall &e<region1,region2,region3,etc.> <player>&c."
+		else:
+			send "&6Arim>> &cUsage: /addownerall &e<region1,region2,region3,etc.> <player>&c."
+
+Command /removeownerall [<text>] [<text>]:
+	Permission: arim.buildcity
+	Permission message: {@Perm}
+	Aliases: /rownerall, /roa, /rownall
+	Executable by: players
+	Trigger:
+		if "%arg 1%" contains ",":
+			if arg 2 is set:
+				set {_regions::*} to arg 1 split at ","
+				loop {_regions::*}:
+					make console execute command "/rg addowner %loop-value% %arg 2%"
+			else:
+				send "&6Arim>> &cUsage: /addownerall &e<region1,region2,region3,etc.> <player>&c."
+		else:
+			send "&6Arim>> &cUsage: /addownerall &e<region1,region2,region3,etc.> <player>&c."
+
+function MWSsafeLoc(max.x: number, min.x: number, max.z: number, min.z: number, world: text = "{@World}", yaw: number = 0, pitch: number = 0) :: location:
+	set {_x} to round(random number between {_min.x} and {_max.x})
+	set {_z} to round(random number between {_min.z} and {_max.z})
+	chance of 50%:
+		set {_x} to (0-{_x})
+	chance of 50%:
+		set {_z} to (0-{_z})
+	set {_loc} to location({_x}, 61, {_z}, "%{_world}%" parsed as world, {_yaw}, {_pitch})
+	if biome at {_loc} is not {@BlacklistedBiomes}:
+		if regions at {_loc} is not set:
+			loop blocks above {_loc}:
+				if loop-block is not air or water or lava or gravel or stone:
+					set {_block} to block above loop-block
+					if {_block} is air:
+						if sunlight level at {_block} > 10:
+							set {_block2} to block above {_block}
+							if {_block2} is air:
+								set {_block3} to block above {_block2}
+								if {_block3} is air:
+									set {_block4} to block above {_block3}
+									if {_block4} is air:
+										set {_y} to (y-coordinate of {_block} + 1)
+										return location({_x}, {_y}, {_z}, "%{_world}%" parsed as world)
+	return {spawn.Cities}
+
+function MWSsafeTeleport(p: player):
+	send "&aSearching&5..." to {_p}
+	set {_loc} to MWSsafeLoc({@MaxX}, {@MinX}, {@MaxZ}, {@MinZ}, "{@World}")
+	teleport {_p} to {_loc}
+	if {_loc} = {spawn.Cities}:
+		send "&6Arim>> &cSorry, a valid location could not be found. &7Try again in 5 seconds with &e/wild&7." to {_p}
+		send "&6Arim>> &aYou were teleported to spawn instead." to {_p}
+	else:
+		set {rm::falldmg::%{_p}%} to now
+		send "{@TeleportMsg}" to {_p}
+		play enderdragon wings at {_loc} with pitch 1
+
+Command /citiesworld [<text>] [<player>]:
+	Executable by: players
+	Permission: arim.citiesworld
+	Permission message: {@Perm}
+	Trigger:
+		if arg 1 is not set:
+			set {_arg1} to "tp"
+		else:	
+			set {_arg1} to "%arg 1%"
+		if "%{_arg1}%" = "tp":
+			make player execute command "/buildcity"
+		else if "%{_arg1}%" = "home" or "cityhome":
+			make player execute command "/cityhome"
+		else if "%{_arg1}%" = "sethome" or "citysethome" or "setcityhome":
+			make player execute command "/setcityhome"
+		else if "%{_arg1}%" = "spawn":
+			execute console command "/mv tp %player% CitiesTransfer"
+		else if "%{_arg1}%" != "rtp" or "wild" or "randomtp" or "randomteleport" or "rteleport":
+			send "&6Arim>> &cUsage: /citiesworld &e<tp | rtp | home | sethome | spawn> [extra args]&c."
+		else if arg 2 != player:
+			if player doesn't have permission "{@TpPermOther}":
+				send "{@TpOtherMsg}"
+			else:
+				set {citiew::%name of player%::rtp} to 1
+				MWSsafeTeleport(arg 2)
+				send "{@TeleportingOther}"
+		else:
+			send player title "&5Teleporting..." with subtitle "&aYou will be teleported to a random location." {@SuccessTitleCustom}
+			set {citiew::%name of player%::rtp} to 1
+			MWSsafeTeleport(player)
+
+Command /setcityhome:
+	Permission: arim.citiesworld
+	Permission message: &cYou may only do this in Citie Sworld.
+	Description: Set your home. Teleport to it with /home
+	Executable by: players
+	Trigger:
+		if block above the block below player is water:
+			send "&6Arim>> &aYou may not set your home in water."
+		else:
+			set {cityhome::%name of player%::x} to x-coordinate of player
+			set {cityhome::%name of player%::y} to y-coordinate of player
+			set {cityhome::%name of player%::z} to z-coordinate of player
+			set {cityhome::%name of player%::world} to "%world of player%"
+			set {cityhome::%name of player%::yaw} to yaw of player
+			set {cityhome::%name of player%::pitch} to pitch of player
+			send "&6Arim>> &aYour home was set in &5Citie Sworld&a to your location."
+
+Command /cityhome [<text>]:
+	Permission: arim.citiesworld
+	Permission message: &cYou may only use this in Citie Sworld.
+	Description: Teleport to your home.
+	Executable by: players
+	Trigger:
+		if arg 1 is set:
+			if "%arg 1%" = "set":
+				make player execute command "/citysethome"
+				stop
+		set {_loc} to location({cityhome::%name of player%::x}, {cityhome::%name of player%::y}, {cityhome::%name of player%::z}, "%{cityhome::%name of player%::world}%" parsed as world, {cityhome::%name of player%::yaw}, {cityhome::%name of player%::pitch})
+		teleport player to {_loc}
+		if {_loc} = {spawn.Cities}:
+			send player title "&5Teleported." with subtitle "&aYou have no home, so you teleported to spawn." for 3 second
+		else:
+			send player title "&5Teleported." with subtitle "&aYou are now at your home." for 3 second
+
+Command /cityforcehome <offline player>:
+	Permission: arim.forcehome
+	Permission message: {@Perm}
+	Description: Set another player's home
+	Usage: /cityforcehome <player>
+	Trigger:
+		if "%arg 1%" parsed as player is online:
+			set {cityhome::%name of arg 1%::x} to x-coordinate of player
+			set {cityhome::%name of arg 1%::y} to y-coordinate of player
+			set {cityhome::%name of arg 1%::z} to z-coordinate of player
+			set {cityhome::%name of arg 1%::world} to "%world of player%"
+			set {cityhome::%name of arg 1%::yaw} to yaw of player
+			set {cityhome::%name of arg 1%::pitch} to pitch of player
+		else:
+			load yaml "{@CityHomeFileArg}" as "{@CityHomeFileArg}"
+			set yaml value "X" from "{@CityHomeFileArg}" to x-coordinate of player
+			set yaml value "Y" from "{@CityHomeFileArg}" to y-coordinate of player
+			set yaml value "Z" from "{@CityHomeFileArg}" to z-coordinate of player
+			set yaml value "World" from "{@CityHomeFileArg}" to "%world of player%"
+			set yaml value "Yaw" from "{@CityHomeFileArg}" to yaw of player
+			set yaml value "Pitch" from "{@CityHomeFileArg}" to pitch of player
+			save yaml "{@CityHomeFileArg}"
+			unload yaml "{@CityHomeFileArg}"
+		send "&6Arim>> &5%arg 1%&a's home was updated."
+
+Command /cityspyhome <offline player>:
+	Permission: arim.forcehome
+	Permission message: {@Perm}
+	Description: Spy on another player's home
+	Usage: /cityspyhome <player>
+	Trigger:
+		if "%arg 1%" parsed as player is online:
+			set {_loc} to location({cityhome::%name of arg 1%::x}, {cityhome::%name of arg 1%::y}, {cityhome::%name of arg 1%::z}, "%{cityhome::%name of arg 1%::world}%" parsed as world, {cityhome::%name of arg 1%::yaw}, {cityhome::%name of arg 1%::pitch})
+		else:
+			load yaml "{@CityHomeFileArg}" as "{@CityHomeFileArg}"
+			set {_x} to yaml value "X" from "{@CityHomeFileArg}"
+			set {_y} to yaml value "Y" from "{@CityHomeFileArg}"
+			set {_z} to yaml value "Z" from "{@CityHomeFileArg}"
+			set {_world} to yaml value "World" from "{@CityHomeFileArg}"
+			set {_yaw} to yaml value "Yaw" from "{@CityHomeFileArg}"
+			set {_pitch} to yaml value "Pitch" from "{@CityHomeFileArg}"
+			unload yaml "{@CityHomeFileArg}"
+			set {_loc} to location({_x}, {_y}, {_z}, "%{_world}%" parsed as world, {_yaw}, {_pitch})
+		teleport player to {_loc}
+
+Command /createunverifiedclaim [<text>]:
+	Aliases: /unverifiedclaim, /unvclaim
+	Permission: arim.buildunclaimed
+	Permission message: {@Perm}
+	Executable by: players
+	Trigger:
+		if player is in "CitiesTransfer":
+			if length of "%arg 1%" < 20:
+				if "%arg 1%" contains " ":
+					send "&6Arim>> &cRegion name cannot contain spaces."
+					stop
+				if volume of we selection of player < 1:
+					send "{@MustSetBox}"
+					stop
+				if height of we selection of player < 256:
+					make player execute command "//expand vert"
+					send "{@AutoExpanded}"
+					wait 1 tick
+				if height of we selection of player > 255:
+					if UUID of player is not "ed5f12cd600745d9a4b9940524ddaecf" or "949ff2499a0140329ecfc1b610fd7990" or "b703704f5e88478bb5da49a27efcf88a" or "3faf6b167c344049a919a7b4198e2374":
+						set {_onceonly} to true
+					loop {mws::unv::*}:
+						set {_claim::*} to loop-value split by ","
+						if {_claim::2} = arg 1:
+							if {_claim::1} != UUID of player:
+								set {_claimant} to offlinePlayerUUID("%{_claim::1}%")
+								send "&6Arim>> &cAn unverified claim by this name already exists, filed by &e%{_claimant}%&c."
+							else:
+								send "&6Arim>> &cYou already filed an unverified claim by this name."
+							stop
+						if {_claim::1} = UUID of player:
+							if {_onceonly} is true:
+								send "&6Arim>> &cYou already filed an unverified claim. Remove your old unverified claim with &e/revokeunvclaim&c."
+								stop
+					add "%UUID of player%,%arg 1%" to {mws::unv::*}
+					make player execute command "/asodubaosubiajnzkajdwllk %arg 1%"
+					send "&6Arim>> &5%arg 1%&a added as an unverified claim under your name."
+				else:
+					send "{@MustBeExpanded}"
+			else:
+				send "&6Arim>> &cUse a name for your unverified claim. (<20 characters)"
+		else:
+			send "&6Arim>> &cYou must be in &5Citie Sworld&c."
+
+Command /revokeunvclaim [<text>]:
+	Permission: arim.buildunclaimed
+	Permission message: {@Perm}
+	Executable by: players
+	Aliases: /removeunvclaim
+	Trigger:
+		if UUID of player is not "ed5f12cd600745d9a4b9940524ddaecf" or "949ff2499a0140329ecfc1b610fd7990" or "b703704f5e88478bb5da49a27efcf88a" or "3faf6b167c344049a919a7b4198e2374":
+			send "{@Perm}"
+			stop
+		loop {mws::unv::*}:
+			set {_claim::*} to loop-value split by ","
+			if {_claim::2} = arg 1:
+				if {_claim::1} = UUID of player:
+					delete {mws::unv::%loop-index%}
+					execute console command "/rg delete %arg 1%"
+					send "&6Arim>> &aRemoved claim &5%arg 1%&a."
+				else:
+					send "&6Arim>> &cSorry, that is someone else's claim."
+				stop
+		send "&6Arim>> &cNo claim found by that name."
+
+Command /verifycommoner [<text>]:
+	Aliases: /confirmcommoner
+	Executable by: players
+	Trigger:
+		if UUID of player is not "ed5f12cd600745d9a4b9940524ddaecf" or "949ff2499a0140329ecfc1b610fd7990" or "b703704f5e88478bb5da49a27efcf88a" or "3faf6b167c344049a919a7b4198e2374":
+			send "{@Perm}"
+			stop
+		set {_uuid} to offlineUUIDPlayer("%arg 1%")
+		if {_uuid} != "Never-Been-Online":
+			loop {mws::listwait::*}:
+				if "%loop-value%" contains "%{_uuid}%":
+					set {_immig::*} to loop-value split by ","
+					set {_approved} to subtext of {_immig::3} from characters 2 to (length of {_immig::3} - 1)
+					set {_appr::*} to {_approved} split by "|"
+					loop {_appr::*}:
+						if "%loop-value-2%" contains "%UUID of player%":
+							send "&6Arim>> &cYou already approved of this immigrant!"
+							stop
+					set {_num} to {_immig::2} parsed as number
+					if {_num} is 0:
+						increase {_num} by 1
+						set {mws::listwait::%loop-index%} to "%{_immig::1}%,%{_num}%,[%{_approved}%|%UUID of player%]"
+					else if {_num} is 1:
+						delete {mws::listwait::%loop-index%}
+						execute console command "/user %{_uuid}% group add buildcity"
+					else:
+						send "&6Arim>> &cError reading data save. Contact Aerodactyl_."
+					stop
+			send "&6Arim>> &cPlayer not found on waiting list. Add player with &e/addcommoner&c."
+		else:
+			send "&6Arim>> &cTarget player has never been online."
+
+Command /addcommoner [<text>]:
+	Permission: arim.buildunclaimed
+	Permission message: {@Perm}
+	Aliases: /proposecommoner, /suggestcommoner, /addimmigrant
+	Executable by: players
+	Trigger:
+		if UUID of player is not "ed5f12cd600745d9a4b9940524ddaecf" or "949ff2499a0140329ecfc1b610fd7990" or "b703704f5e88478bb5da49a27efcf88a" or "3faf6b167c344049a919a7b4198e2374":
+			send "{@Perm}"
+			stop
+		set {_uuid} to offlineUUIDPlayer("%arg 1%")
+		if {_uuid} != "Never-Been-Online":
+			loop {mws::listwait::*}:
+				if "%loop-value%" contains "%{_uuid}%":
+					send "&6Arim>> &cPlayer is already listed! Verify them with &e/verifycommoner."
+					stop
+			add "%{_uuid}%,0,[]" to {mws::listwait::*}
+			loop {mws::listwait::*}:
+				if "%loop-value%" contains "%{_uuid}%":
+					set {_num} to "%loop-index%" parsed as number
+					if "%loop-value%" != "...":
+						set {_id} to ({_num} - 1)
+					else:
+						set {_id} to "Numeric ID Error! Contact Aerodactyl_ to have it fixed."
+					send "&6Arim>> &5%arg 1% &7(&e%{_uuid}%&7) &aadded to immigrant waiting list. You need 2 other Court members to confirm this immigrant."
+					stop
+			send "&6Arim>> &cERROR - Player was never added. Something went wrong, sorry."
+		else:
+			send "&6Arim>> &cTarget player has never been online."
+		
+		
+
+on load:
+	add "..." to {_dot::*}
+	if file "{@File}" does not exist:
+		load yaml "{@File}" as "{@File}"
+		set yaml list "listwait" from "{@File}" to {_dot::*}
+		set yaml list "unv" from "{@File}" to {_dot::*}
+	else:
+		load yaml "{@File}" as "{@File}"
+	set {mws::listwait::*} to yaml list "listwait" from "{@File}"
+	set {mws::unv::*} to yaml list "unv" from "{@File}"
+	unload yaml "{@File}"
+
+on unload:
+	load yaml "{@File}" as "{@File}"
+	set yaml list "listwait" from "{@File}" to {mws::listwait::*}
+	set yaml list "unv" from "{@File}" to {mws::unv::*}
+	save yaml "{@File}"
+	unload yaml "{@File}"
+
+Command /unverifiedclaims:
+	Aliases: /claimslist, /unvclaims, /unvclaimslist
+	Executable by: players
+	Trigger:
+		if UUID of player is not "ed5f12cd600745d9a4b9940524ddaecf" or "949ff2499a0140329ecfc1b610fd7990" or "b703704f5e88478bb5da49a27efcf88a" or "3faf6b167c344049a919a7b4198e2374":
+			send "{@Perm}"
+			stop
+		if {mws::unv::2} is not set:
+			send "&6Arim>> &cNo unverified claims have been made yet."
+			stop
+		loop {mws::unv::*}:
+			set {_num} to "%loop-index%" parsed as number
+			if "%loop-value%" != "...":
+				set {_claim::*} to loop-value split by ","
+				set {_player} to offlinePlayerUUID({_claim::1})
+				format slot ({_num} - 2) of player with 1 grass block named "&e%{_player}%" with lore "&7Region: &b%{_claim::2}%" to close then run [json("%player%", "&6Arim>> ||&aClick here to verify this claim.||sgt:/verifyclaim ")]
+
+Command /verifyclaim [<text>]:
+	Executable by: players
+	Permission: arim.buildunclaimed
+	Permission message: {@Perm}
+	Aliases: /approveclaim
+	Trigger:
+		if UUID of player is not "ed5f12cd600745d9a4b9940524ddaecf" or "949ff2499a0140329ecfc1b610fd7990" or "b703704f5e88478bb5da49a27efcf88a" or "3faf6b167c344049a919a7b4198e2374":
+			send "{@Perm}"
+			stop
+		loop {mws::unv::*}:
+			set {_claim::*} to loop-value split by ","
+			if {_claim::2} = arg 1:
+				set {_player} to offlinePlayerUUID({_claims::1})
+				if {_player} != "Never-Been-Online":
+					execute console command "/rg addowner %{_claims::2}% %{_player}%"
+					send "&6Arim>> &aAdded &5%{_player}% &aas owner for &e%{_claims::2}%."
+				else:
+					send "&6Arim>> &cError. Player name could not be fetched for unverified claim."
+				stop
+		send "&6Arim>> &cNo claim found by that name."

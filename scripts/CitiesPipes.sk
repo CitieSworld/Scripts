@@ -1,0 +1,162 @@
+options:
+	PipesFile: plugins/Skript/CitiesPipes.yml
+	Frequency: 2 second
+	PipeName: &bPipe
+	SourcesChain: Pipes-Sources
+	PipesChain: Pipes-Pipes
+
+variables:
+	{piping} = false
+
+function isLoaded(loc: location) :: boolean:
+	return arimsk loaded status of {_loc}
+
+function setSource(loc: location):
+	locApiSet("{@SourcesChain}", {_loc})
+
+function removeSource(loc: location):
+	locApiRemove("{@SourcesChain}", {_loc})
+
+function isSource(loc: location) :: boolean:
+	return locApiCheck("{@SourcesChain}", {_loc})
+
+function setPipe(loc: location):
+	locApiSet("{@PipesChain}", {_loc})
+
+function removePipe(loc: location):
+	locApiRemove("{@PipesChain}", {_loc})
+
+function isPipe(loc: location) :: boolean:
+	return locApiCheck("{@PipesChain}", {_loc})
+
+function hasPipe(loc: location) :: boolean:
+	loop blocks in radius 1 around {_loc}:
+		if loop-block is cobblestone wall:
+			if isPipe(location of loop-block) = true:
+				return true
+	return false
+
+function nearPipes(loc: location) :: locations:
+	add {falseloc} to {_list::*}
+	loop blocks in radius 1 around {_loc}:
+		if loop-block is cobblestone wall:
+			if isPipe(location of loop-block) = true:
+				add location of loop-block to {_list::*}
+	return {_list::*}
+
+function nearInv(loc: location) :: location:
+	loop blocks in radius 1 around {_loc}:
+		if loop-block is hopper or chest or trapped chest or dropper or dispenser or furnace:
+			return loop-block's location
+	return {falseloc}
+
+function getItems(source: location) :: items:
+	set {_n} to 0
+	set {_max} to 32
+	loop all items in inventory of block at {_source}:
+		set {_i} to loop-item
+		if {_n} + item amount of {_i} > {_max}:
+			set item amount of {_i} to ({_max} - {_n})
+			add {_i} to {_items::*}
+			return {_items::*}
+		else:
+			increase {_n} by item amount of {_i}
+			add {_i} to {_items::*}
+	return {_items::*}
+
+function dropAt(i: item, dest: location):
+	drop {_i} at {_dest}
+
+function dropItems(source: location, destination: location):
+	set {_i::*} to getItems({_source})
+	loop {_i::*}:
+		remove loop-value from inventory of block at {_source}
+		dropAt(loop-value, {_destination})
+
+function moveItems(source: location, destination: location):
+	set {_i::*} to getItems({_source})
+	loop {_i::*}:
+		remove loop-value from inventory of block at {_source}
+		if inventory of block at {_destination} has enough space for loop-value:
+			add loop-value to inventory of block at {_destination}
+		else:
+			dropAt(loop-value, {_destination})
+
+function moveFrom(loc: location, checkLoaded: boolean):
+	if hasPipe({_loc}) = false:
+		stop
+	set {_current} to {_loc}
+	add {_current} to {_checkagainst::*}
+	set {_n} to 1
+	while {_n} < 1000:
+		set {_potential::*} to nearPipes({_current})
+		loop {_potential::*}:
+			if loop-value != {falseloc}:
+				set {_okay} to true
+				set {_checkloc} to loop-value
+				loop {_checkagainst::*}:
+					if loop-value-2 = {_checkloc}:
+						set {_okay} to false
+				if {_okay} = true:
+					set {_current} to {_checkloc}
+		if {_current} = {_last}:
+			set {_inventory} to nearInv({_current})
+			if {_inventory} = {falseloc}:
+				dropItems({_loc}, {_current})
+			else:
+				moveItems({_loc}, {_inventory})
+			stop
+		else:
+			add {_current} to {_checkagainst::*}
+			set {_last} to {_current}
+		increase {_n} by 1
+	create explosion of force 4 at {_current}
+	dropItems({_loc}, {_current})
+
+function moveAllItems(checkLoaded: boolean):
+	set {_sources::*} to locApiGetAll("{@SourcesChain}")
+	loop {_sources::*}:
+		if {_checkLoaded} = false:
+			moveFrom({_loc}, {_checkLoaded})
+		else if isLoaded({_loc}) = true:
+			moveFrom({_loc}, {_checkLoaded})
+
+on load:
+	set {falseloc} to location(0, 0, 0, "CitiesTransfer" parsed as world)
+
+function checkStart(checkLoaded: boolean):
+	if {piping} = false:
+		set {piping} to true
+		while {piping} is true:
+			moveAllItems({_checkLoaded})
+			wait {@Frequency}
+			if number of players = 0:
+				set {piping} to false
+
+on join:
+	checkStart(true)
+
+on place:
+	if the event was not cancelled:
+		if player is in "CitiesTransfer":
+			if player's tool is hopper:
+				if player's targeted block is cobblestone wall:
+					if isPipe(location of player's targeted block) = true:
+						setSource(location of event-block)
+			else if player's tool is cobblestone wall named "{@PipeName}":
+				setPipe(location of event-block)
+
+on break:
+	if the event was not cancelled:
+		if player is in "CitiesTransfer":
+			if event-block is hopper:
+				if isSource(location of event-block) = true:
+					removeSource(location of event-block)
+			else if event-block is cobblestone wall:
+				if isPipe(location of event-block) = true:
+					if amount of cobblestone wall in player's inventory > 0:
+						removePipe(location of event-block)
+						remove 1 cobblestone wall from player's inventory
+						give player 1 cobblestone wall named "{@PipeName}"
+					else:
+						send "&6Arim>> &cError: &7Please have a cobblestone wall in your inventory while you break a pipe block. When you break a pipe block: 1) One cobblestone wall will be removed from your inventory 2) One pipe will be added to your inventory 3) One cobblestone wall item will be dropped."
